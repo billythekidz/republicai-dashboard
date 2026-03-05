@@ -27,10 +27,19 @@ function setRunning(label) {
     spinnerEl.classList.remove('hidden');
 }
 
+let lastCmdId = '';
+
 function setDone(code) {
     spinnerEl.classList.add('hidden');
     const status = code === 0 ? '✅ Done' : `❌ Exit: ${code}`;
     titleEl.textContent += ` — ${status}`;
+    // Show share button only after peers command succeeds
+    const shareBtn = document.getElementById('share-peers-btn');
+    if (lastCmdId === 'peers' && code === 0) {
+        shareBtn.classList.remove('hidden');
+    } else {
+        shareBtn.classList.add('hidden');
+    }
 }
 
 function runCommand(cmdId, args = '') {
@@ -40,6 +49,7 @@ function runCommand(cmdId, args = '') {
     }
 
     clearOutput();
+    lastCmdId = cmdId;
     const label = cmdId + (args ? ` (${args})` : '');
     setRunning(label);
 
@@ -148,3 +158,49 @@ document.querySelectorAll('.input-row input').forEach(input => {
 
 // Auto-refresh status on load
 setTimeout(() => runCommand('status'), 500);
+
+// ── Share Peers Modal ────────────────────────────
+function openSharePeers() {
+    const modal = document.getElementById('share-modal');
+    const cmdEl = document.getElementById('share-command');
+    cmdEl.textContent = '⏳ Loading peers...';
+    modal.classList.remove('hidden');
+
+    // Fetch share-peers command
+    const es = new EventSource('/api/run?cmd=share-peers');
+    let output = '';
+    es.onmessage = (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'stdout' || data.type === 'stderr') {
+                output += data.text;
+            } else if (data.type === 'done') {
+                es.close();
+                // Extract just the command lines
+                const lines = output.split('\n');
+                const cmdLines = [];
+                let capture = false;
+                for (const line of lines) {
+                    if (line.startsWith('PEERS=')) capture = true;
+                    if (capture) cmdLines.push(line);
+                    if (line.startsWith('systemctl restart')) { capture = false; }
+                }
+                cmdEl.textContent = cmdLines.join('\n').trim() || output;
+            }
+        } catch (err) { /* ignore */ }
+    };
+    es.onerror = () => { es.close(); cmdEl.textContent = 'Error loading peers'; };
+}
+
+function copyShareCommand() {
+    const text = document.getElementById('share-command').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+    });
+}
+
+function closeShareModal() {
+    document.getElementById('share-modal').classList.add('hidden');
+}

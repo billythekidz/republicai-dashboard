@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RepublicAI Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <header>
     <h1>⚡ RepublicAI Dashboard</h1>
@@ -83,12 +85,27 @@
       <div id="output-header">
         <span id="output-title">Output</span>
         <span id="output-spinner" class="hidden">⏳ Running...</span>
+        <button id="share-peers-btn" class="hidden share-btn" onclick="openSharePeers()">📡 Share Peers</button>
         <button id="clear-btn" onclick="clearOutput()">Clear</button>
       </div>
       <pre id="output"></pre>
+    </div>
+
+    <!-- Share Peers Modal -->
+    <div id="share-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h3>📡 Share Peers Command</h3>
+        <p>Others can copy-paste this to add your peers:</p>
+        <pre id="share-command" class="share-code"></pre>
+        <div class="modal-actions">
+          <button class="modal-btn copy-btn" onclick="copyShareCommand()">📋 Copy</button>
+          <button class="modal-btn close-btn" onclick="closeShareModal()">✖ Close</button>
+        </div>
+      </div>
     </div>
   </main>
 
   <script src="app.js"></script>
 </body>
+
 </html>
