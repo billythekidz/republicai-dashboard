@@ -22,6 +22,15 @@ function clearOutput() {
     outputEl.textContent = '';
 }
 
+function copyLog() {
+    const text = outputEl.textContent || '';
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copy-log-btn');
+        btn.textContent = '✅';
+        setTimeout(() => { btn.textContent = '📋'; }, 1500);
+    });
+}
+
 function setRunning(label) {
     titleEl.textContent = label;
     spinnerEl.classList.remove('hidden');
