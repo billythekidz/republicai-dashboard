@@ -1,15 +1,20 @@
 #!/bin/bash
 # status.sh — Node health for dashboard header
-# Uses env vars: NODE_HOME, NODE_RPC, NODE_RPC_HTTP, WALLET_NAME, KEYRING_BACKEND
-HOME_DIR="${NODE_HOME:-/root/.republicd}"
+# Uses env vars injected by server.js: WALLET_VALOPER, WALLET_ADDRESS, NODE_RPC, etc.
+VALOPER="${WALLET_VALOPER}"
+WALLET="${WALLET_ADDRESS}"
 RPC="${NODE_RPC:-tcp://localhost:26657}"
 RPC_HTTP="${NODE_RPC_HTTP:-http://localhost:26657}"
-WNAME="${WALLET_NAME:-my-wallet}"
-KB="${KEYRING_BACKEND:-test}"
-RPC_PORT="${NODE_RPC_PORT:-26657}"
 
-VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
-WALLET=$(republicd keys show "$WNAME" -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+# Fallback if env vars empty
+if [ -z "$VALOPER" ]; then
+    HOME_DIR="${NODE_HOME:-/root/.republicd}"
+    WNAME="${WALLET_NAME:-my-wallet}"
+    KB="${KEYRING_BACKEND:-test}"
+    VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+    WALLET=$(republicd keys show "$WNAME" -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+fi
+
 STATUS_JSON=$(curl -s "$RPC_HTTP/status")
 BLOCK=$(echo "$STATUS_JSON" | jq -r '.result.sync_info.latest_block_height')
 SYNCING=$(echo "$STATUS_JSON" | jq -r '.result.sync_info.catching_up')

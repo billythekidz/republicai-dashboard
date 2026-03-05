@@ -1,18 +1,25 @@
 #!/bin/bash
 # delegations.sh — Uses env vars from server
-HOME_DIR="${NODE_HOME:-/root/.republicd}"
+VALOPER="${WALLET_VALOPER}"
 RPC="${NODE_RPC:-tcp://localhost:26657}"
-WNAME="${WALLET_NAME:-my-wallet}"
-KB="${KEYRING_BACKEND:-test}"
 
-VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+# Fallback
+if [ -z "$VALOPER" ]; then
+    HOME_DIR="${NODE_HOME:-/root/.republicd}"
+    WNAME="${WALLET_NAME:-my-wallet}"
+    KB="${KEYRING_BACKEND:-test}"
+    VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+fi
+
+echo "Valoper: $VALOPER"
+echo ""
+
 republicd query staking validator "$VALOPER" --node "$RPC" -o json > /tmp/val_info.json 2>/dev/null
 republicd query staking delegations-to "$VALOPER" --node "$RPC" -o json > /tmp/delegations.json 2>/dev/null
 python3 << 'PYEOF'
 import json
 try:
     v = json.load(open("/tmp/val_info.json"))
-    # Handle nested .validator or flat
     val = v.get("validator", v)
     d = json.load(open("/tmp/delegations.json"))
     print(f"Moniker: {val['description']['moniker']}")

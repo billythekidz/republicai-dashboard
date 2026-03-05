@@ -1,18 +1,24 @@
 #!/bin/bash
 # list-jobs.sh — List compute jobs for this validator
-HOME_DIR="${NODE_HOME:-/root/.republicd}"
+# Uses env vars injected by server.js from config.json
+VALOPER="${WALLET_VALOPER}"
+WALLET="${WALLET_ADDRESS}"
 RPC="${NODE_RPC:-tcp://localhost:26657}"
-WNAME="${WALLET_NAME:-my-wallet}"
-KB="${KEYRING_BACKEND:-test}"
 
-VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
-WALLET=$(republicd keys show "$WNAME" -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+# Fallback: try CLI if env vars empty
+if [ -z "$VALOPER" ]; then
+    HOME_DIR="${NODE_HOME:-/root/.republicd}"
+    WNAME="${WALLET_NAME:-my-wallet}"
+    KB="${KEYRING_BACKEND:-test}"
+    VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+    WALLET=$(republicd keys show "$WNAME" -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+fi
 
 echo "Wallet:  $WALLET"
 echo "Valoper: $VALOPER"
 echo ""
 
-# Query jobs — handle errors gracefully
+# Query jobs
 JOBS_JSON=$(republicd query computevalidation list-job --node "$RPC" -o json 2>/dev/null)
 if [ -z "$JOBS_JSON" ]; then
     echo "ERROR: Could not query jobs (empty response)"
@@ -20,15 +26,14 @@ if [ -z "$JOBS_JSON" ]; then
     exit 1
 fi
 
-# Validate JSON before passing to Python
 echo "$JOBS_JSON" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null
 if [ $? -ne 0 ]; then
-    echo "ERROR: Invalid JSON response from republicd"
+    echo "ERROR: Invalid JSON response"
     echo "$JOBS_JSON" | head -3
     exit 1
 fi
 
-echo "$JOBS_JSON" | python3 << 'PYEOF'
+echo "$JOBS_JSON" | WALLET_VALOPER="$VALOPER" WALLET_ADDRESS="$WALLET" python3 << 'PYEOF'
 import json, sys, os
 
 valoper = os.environ.get("WALLET_VALOPER", "")
@@ -57,6 +62,5 @@ else:
         jid = j.get("id", "?")
         status = j.get("status", "?")
         rhash = j.get("result_hash", "")[:30]
-        creator = j.get("creator", "")[:20]
         print(f"  Job #{jid:>4s} | {status:25s} | hash={rhash}")
 PYEOF
