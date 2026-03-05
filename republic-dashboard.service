@@ -1,0 +1,14 @@
+[Unit]
+Description=RepublicAI Dashboard (Web UI)
+After=network.target republicd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node /root/dashboard/server.js
+WorkingDirectory=/root/dashboard
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

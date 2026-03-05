@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepublicAI Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>⚡ RepublicAI Dashboard</h1>
+    <div id="health-bar">
+      <span id="block-height" class="badge">Block: —</span>
+      <span id="sync-status" class="badge">Sync: —</span>
+      <span id="peer-count" class="badge">Peers: —</span>
+      <span id="val-status" class="badge">Status: —</span>
+      <span id="balance-display" class="badge">Balance: —</span>
+    </div>
+  </header>
+
+  <main>
+    <div id="sidebar">
+      <div class="group" data-group="status">
+        <h3>📊 Status</h3>
+        <button data-cmd="status" class="auto-refresh">🟢 Node Status</button>
+        <button data-cmd="services">⚙️ Services</button>
+        <button data-cmd="delegations">🤝 Delegations</button>
+        <button data-cmd="validators">📊 Validators</button>
+        <button data-cmd="peers">🌐 Peers</button>
+      </div>
+
+      <div class="group" data-group="jobs">
+        <h3>💼 Jobs</h3>
+        <button data-cmd="list-jobs">📋 My Jobs</button>
+        <div class="input-row">
+          <input type="text" id="job-id-input" placeholder="Job ID">
+          <button data-cmd="query-job" data-args-from="job-id-input">🔍</button>
+          <button data-cmd="compute-job" data-args-from="job-id-input" class="warn">🖥️</button>
+        </div>
+        <button data-cmd="submit-self" class="warn">📤 Submit + Compute (Self)</button>
+        <div class="input-row">
+          <input type="text" id="find-tx-input" placeholder="Job ID for TX">
+          <button data-cmd="find-tx" data-args-from="find-tx-input">🔎 Find TX</button>
+        </div>
+      </div>
+
+      <div class="group" data-group="services">
+        <h3>🔧 Service Control</h3>
+        <div class="input-row">
+          <select id="svc-select">
+            <option value="republicd">republicd</option>
+            <option value="republic-sidecar">sidecar</option>
+            <option value="republic-autocompute">autocompute</option>
+            <option value="republic-http">http-server</option>
+            <option value="cloudflared">cloudflared</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button data-cmd="svc-start" data-args-from="svc-select" class="small ok">▶️ Start</button>
+          <button data-cmd="svc-stop" data-args-from="svc-select" class="small warn">⏹ Stop</button>
+          <button data-cmd="svc-restart" data-args-from="svc-select" class="small">🔄 Restart</button>
+          <button data-cmd="svc-logs" data-args-from="svc-select" class="small">📜 Logs</button>
+        </div>
+      </div>
+
+      <div class="group" data-group="quick">
+        <h3>⚡ Quick Actions</h3>
+        <button data-cmd="ctl-status">📊 Full CTL Status</button>
+        <button data-cmd="verify-info">📋 Verification Info</button>
+        <button data-cmd="docker-images">🐳 Docker Images</button>
+      </div>
+
+      <div class="group" data-group="custom">
+        <h3>⌨️ Custom Command</h3>
+        <div class="input-row">
+          <input type="text" id="custom-cmd" placeholder="bash command..." style="flex:1">
+          <button data-cmd="custom" data-args-from="custom-cmd" class="warn">Run</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="output-panel">
+      <div id="output-header">
+        <span id="output-title">Output</span>
+        <span id="output-spinner" class="hidden">⏳ Running...</span>
+        <button id="clear-btn" onclick="clearOutput()">Clear</button>
+      </div>
+      <pre id="output"></pre>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
