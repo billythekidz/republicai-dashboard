@@ -133,9 +133,8 @@ The service will:
     ├── peers.py            # Connected peers via RPC
     ├── share-peers.py      # Generate merge+dedup peer sharing command
     ├── list-jobs.py        # Compute jobs (full hash, creator, target)
-    ├── compute-job.sh      # Full pipeline: submit → inference → result
-    ├── republic-ctl.sh     # Service control
-    └── verify-info.sh      # GPU verification form data
+    ├── all-jobs.py         # All chain jobs (newest first, --reverse)
+    └── compute-job.sh      # Full pipeline: submit → inference → result
 ```
 
 ## Configuration
