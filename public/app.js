@@ -181,9 +181,9 @@ function openSharePeers() {
                 const cmdLines = [];
                 let capture = false;
                 for (const line of lines) {
-                    if (line.startsWith('PEERS=')) capture = true;
+                    if (line.startsWith('NEW_PEERS=')) capture = true;
                     if (capture) cmdLines.push(line);
-                    if (line.startsWith('systemctl restart')) { capture = false; }
+                    if (line.startsWith('echo "Done')) { capture = false; }
                 }
                 cmdEl.textContent = cmdLines.join('\n').trim() || output;
             }
