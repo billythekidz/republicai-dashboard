@@ -165,6 +165,7 @@ reg('services', 'Services Status', 'status', '⚙️', { pyfile: 'services.py' }
 reg('delegations', 'Delegations', 'status', '🤝', { pyfile: 'delegations.py' });
 reg('validators', 'All Validators', 'status', '📊', { pyfile: 'validators.py' });
 reg('peers', 'Connected Peers', 'status', '🌐', { pyfile: 'peers.py' });
+reg('share-peers', '🔗 Share Peers', 'status', '📡', { pyfile: 'share-peers.py' });
 
 // === Jobs (all Python) ===
 reg('list-jobs', 'List My Jobs', 'jobs', '📋', { pyfile: 'list-jobs.py' });
