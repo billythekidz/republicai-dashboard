@@ -30,46 +30,26 @@ def main():
     print(f"Valoper: {valoper}")
     print()
 
-    # Pagination (no --reverse: it breaks --page-key)
-    all_jobs = []
-    seen_ids = set()
-    page_key = None
-    for page in range(100):
-        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500"
-        if page_key:
-            cmd += f' --page-key "{page_key}"'
-        raw, rc = run(cmd, timeout=60)
-        if not raw:
-            if page == 0:
-                print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
-                sys.exit(1)
-            break
+    # Fetch latest 1000 jobs (--page-key is broken server-side, returns 0 results)
+    # --reverse --limit 1000 gets the newest 1000 jobs in a single query
+    cmd = f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1000"
+    raw, rc = run(cmd, timeout=60)
+    if not raw:
+        print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
+        sys.exit(1)
 
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError as e:
-            if page == 0:
-                print(f"ERROR: Invalid JSON: {e}")
-                print(f"First 200 chars: {raw[:200]}")
-                sys.exit(1)
-            break
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON: {e}")
+        print(f"First 200 chars: {raw[:200]}")
+        sys.exit(1)
 
-        jobs_page = data.get("jobs", data.get("job", []))
-        if not isinstance(jobs_page, list):
-            jobs_page = [jobs_page] if jobs_page else []
-        new_jobs = [j for j in jobs_page if j.get("id") not in seen_ids]
-        if not new_jobs and page > 0:
-            break
-        for j in new_jobs:
-            seen_ids.add(j.get("id"))
-        all_jobs.extend(new_jobs)
+    jobs_list = data.get("jobs", data.get("job", []))
+    if not isinstance(jobs_list, list):
+        jobs_list = [jobs_list] if jobs_list else []
 
-        pagination = data.get("pagination", {})
-        page_key = pagination.get("next_key")
-        if not page_key:
-            break
-
-    jobs = all_jobs
+    jobs = jobs_list
 
     my = [j for j in jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
 

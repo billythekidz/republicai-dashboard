@@ -140,41 +140,23 @@ def main():
     print()
     print("=== My Jobs ===")
     if valoper or wallet:
-        # Paginate to get ALL jobs (no --reverse: breaks --page-key)
+        # Fetch latest 1000 jobs (--page-key is broken server-side)
+        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1000"
+        raw, _ = run(cmd, timeout=60)
         all_jobs = []
-        seen_ids = set()
-        page_key = None
-        for page in range(100):
-            cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500"
-            if page_key:
-                cmd += f' --page-key "{page_key}"'
-            raw, _ = run(cmd, timeout=60)
-            if not raw:
-                break
+        if raw:
             try:
                 data = json.loads(raw)
+                jobs_list = data.get("jobs", data.get("job", []))
+                if not isinstance(jobs_list, list):
+                    jobs_list = [jobs_list] if jobs_list else []
+                all_jobs = jobs_list
             except:
-                break
-            jobs_page = data.get("jobs", data.get("job", []))
-            if not isinstance(jobs_page, list):
-                jobs_page = [jobs_page] if jobs_page else []
-            new_jobs = [j for j in jobs_page if j.get("id") not in seen_ids]
-            if not new_jobs and page > 0:
-                break
-            for j in new_jobs:
-                seen_ids.add(j.get("id"))
-            all_jobs.extend(new_jobs)
-            page_key = data.get("pagination", {}).get("next_key")
-            if not page_key:
-                break
+                pass
 
         my_jobs = [j for j in all_jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
-        # Quick query to get latest job ID = total on chain
-        latest_raw, _ = run(f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1")
-        try:
-            total_on_chain = json.loads(latest_raw).get("jobs", [{}])[0].get("id", "?")
-        except:
-            total_on_chain = "?"
+        # Total = latest job ID
+        total_on_chain = all_jobs[0].get("id", "?") if all_jobs else "?"
         print(f"  Total on chain: {total_on_chain}  |  Fetched: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
         print()
         if my_jobs:
