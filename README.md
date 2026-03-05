@@ -7,9 +7,7 @@ Runs **inside WSL / Linux** for direct access to `republicd`, `docker`, `systemc
 
 ## Preview
 
-![Dashboard Status](screenshots/dashboard_1.jpg)
-![Dashboard Jobs](screenshots/dashboard_2.jpg)
-![Dashboard Services](screenshots/dashboard_3.jpg)
+![Dashboard](screenshots/dashboard_1.jpg)
 
 ## Features
 
