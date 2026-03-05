@@ -16,46 +16,23 @@ def main():
     wallet = os.environ.get("WALLET_ADDRESS", "")
     rpc = os.environ.get("NODE_RPC", "tcp://localhost:26657")
 
-    # Fetch ALL jobs with pagination, then sort client-side (--reverse breaks pagination)
-    all_jobs = []
-    seen_ids = set()
-    page_key = None
-    for page in range(100):  # up to 100 pages
-        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500"
-        if page_key:
-            cmd += f' --page-key "{page_key}"'
-        raw, rc = run(cmd, timeout=60)
-        if not raw:
-            if page == 0:
-                print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
-                sys.exit(1)
-            break
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError as e:
-            if page == 0:
-                print(f"ERROR: Invalid JSON: {e}")
-                print(f"First 200 chars: {raw[:200]}")
-                sys.exit(1)
-            break
+    # Fetch latest jobs (--reverse = newest first, single page — pagination breaks with --reverse)
+    MAX_JOBS = 1000
+    cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit {MAX_JOBS} --reverse"
+    raw, rc = run(cmd, timeout=60)
+    if not raw:
+        print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
+        sys.exit(1)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON: {e}")
+        print(f"First 200 chars: {raw[:200]}")
+        sys.exit(1)
 
-        jobs_page = data.get("jobs", data.get("job", []))
-        if not isinstance(jobs_page, list):
-            jobs_page = [jobs_page] if jobs_page else []
-        # Dedup guard
-        new_jobs = [j for j in jobs_page if j.get("id") not in seen_ids]
-        if not new_jobs and page > 0:
-            break
-        for j in new_jobs:
-            seen_ids.add(j.get("id"))
-        all_jobs.extend(new_jobs)
-
-        pagination = data.get("pagination", {})
-        page_key = pagination.get("next_key")
-        if not page_key:
-            break
-
-    jobs = all_jobs
+    jobs = data.get("jobs", data.get("job", []))
+    if not isinstance(jobs, list):
+        jobs = [jobs] if jobs else []
 
     # Count by status
     status_counts = {}
@@ -63,13 +40,9 @@ def main():
         s = j.get("status", "unknown")
         status_counts[s] = status_counts.get(s, 0) + 1
 
-    # Get actual total via quick --reverse --limit 1 (first result = latest ID)
-    latest_raw, _ = run(f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1")
-    try:
-        total_on_chain = json.loads(latest_raw).get("jobs", [{}])[0].get("id", "?")
-    except:
-        total_on_chain = "?"
-    print(f"Total jobs on chain: {total_on_chain}  |  Fetched: {len(jobs)}")
+    # Total = latest job ID (first in --reverse result)
+    total_on_chain = jobs[0].get("id", "?") if jobs else "0"
+    print(f"Total jobs on chain: {total_on_chain}  |  Showing latest: {len(jobs)}")
     for s, c in sorted(status_counts.items()):
         print(f"  {s}: {c}")
     print()
@@ -78,8 +51,7 @@ def main():
         print("  No jobs found on chain.")
         return
 
-    # Sort newest first (client-side)
-    jobs.sort(key=lambda x: int(x.get("id", 0)), reverse=True)
+    # Already sorted newest first by --reverse
     print(f"{'ID':>5s}  {'Status':<20s}  {'Creator':<45s}  {'Target Validator'}")
     print("-" * 130)
 
