@@ -32,7 +32,14 @@ Runs **inside WSL / Linux** for direct access to `republicd`, `docker`, `systemc
   curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   apt-get install -y nodejs
   ```
-- **Python 3** (for config auto-detection)
+- **Python 3.7+** (for dashboard scripts and config auto-detection)
+  ```bash
+  # Check version (most Linux distros include Python 3.8+)
+  python3 --version
+  
+  # Install if missing (Ubuntu/Debian)
+  apt-get install -y python3
+  ```
 
 ### 1. Clone
 
@@ -115,13 +122,13 @@ The service will:
 │   ├── index.html         # Dashboard UI
 │   ├── style.css          # Dark theme
 │   └── app.js             # Client-side SSE + health bar
-└── scripts/               # Bash scripts (use env vars from config)
-    ├── status.sh           # Node health + JSON for header
-    ├── services.sh         # Systemd + Docker status
-    ├── delegations.sh      # Staking delegations
-    ├── validators.sh       # All validators ranked (marks YOUR validator)
-    ├── peers.sh            # Connected peers
-    ├── list-jobs.sh        # Compute jobs targeting this validator
+└── scripts/               # Python scripts (use env vars from config)
+    ├── status.py           # Node health + JSON for header
+    ├── services.py         # Systemd + Docker status
+    ├── delegations.py      # Staking delegations
+    ├── validators.py       # Bonded validators ranked (marks YOUR validator)
+    ├── peers.py            # Connected peers
+    ├── list-jobs.py        # Compute jobs targeting this validator
     ├── compute-job.sh      # Full pipeline: submit → inference → result
     ├── republic-ctl.sh     # Service control
     └── verify-info.sh      # GPU verification form data
