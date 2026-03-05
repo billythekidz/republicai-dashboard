@@ -5,6 +5,12 @@ Runs **inside WSL / Linux** for direct access to `republicd`, `docker`, `systemc
 
 ![Node.js](https://img.shields.io/badge/Node.js-22-green) ![Express](https://img.shields.io/badge/Express-4-blue) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
+## Preview
+
+![Dashboard Status](screenshots/dashboard_1.jpg)
+![Dashboard Jobs](screenshots/dashboard_2.jpg)
+![Dashboard Services](screenshots/dashboard_3.jpg)
+
 ## Features
 
 | Category | Actions |
