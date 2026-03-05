@@ -103,7 +103,13 @@ def main():
         for line in gpu.split("\n"):
             print(f"  {line}")
     else:
-        print("  No NVIDIA GPU found (nvidia-smi not available)")
+        print("  ⚠️ nvidia-smi not found")
+        print("  Install NVIDIA drivers:")
+        print("    # Ubuntu/Debian:")
+        print("    apt-get install -y nvidia-driver-550-server nvidia-utils-550-server")
+        print("    # Or for WSL2:")
+        print("    # Install NVIDIA GPU driver on Windows host from https://www.nvidia.com/drivers")
+        print("    # WSL2 automatically shares the driver via /usr/lib/wsl/lib/")
 
     # Docker
     print()
