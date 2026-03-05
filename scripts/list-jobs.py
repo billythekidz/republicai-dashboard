@@ -30,9 +30,8 @@ def main():
     print(f"Valoper: {valoper}")
     print()
 
-    # Fetch latest 1000 jobs (--page-key is broken server-side, returns 0 results)
-    # --reverse --limit 1000 gets the newest 1000 jobs in a single query
-    cmd = f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1000"
+    # Fetch ALL jobs in one query (huge limit, server returns what it has)
+    cmd = f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1000000000"
     raw, rc = run(cmd, timeout=60)
     if not raw:
         print(f"ERROR: Could not query jobs (exit={rc}, empty output)")

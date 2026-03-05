@@ -16,9 +16,8 @@ def main():
     wallet = os.environ.get("WALLET_ADDRESS", "")
     rpc = os.environ.get("NODE_RPC", "tcp://localhost:26657")
 
-    # Fetch latest jobs (--reverse = newest first, single page — pagination breaks with --reverse)
-    MAX_JOBS = 1000
-    cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit {MAX_JOBS} --reverse"
+    # Fetch ALL jobs in one query (huge limit, server returns what it has)
+    cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 1000000000 --reverse"
     raw, rc = run(cmd, timeout=60)
     if not raw:
         print(f"ERROR: Could not query jobs (exit={rc}, empty output)")

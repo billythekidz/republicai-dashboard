@@ -140,8 +140,8 @@ def main():
     print()
     print("=== My Jobs ===")
     if valoper or wallet:
-        # Fetch latest 1000 jobs (--page-key is broken server-side)
-        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1000"
+        # Fetch ALL jobs in one query (huge limit, server returns what it has)
+        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1000000000"
         raw, _ = run(cmd, timeout=60)
         all_jobs = []
         if raw:
