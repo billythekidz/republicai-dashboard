@@ -53,16 +53,26 @@ function configEnv() {
     };
 }
 
-// Run a bash command directly (we're inside WSL already!)
-function runBash(script) {
-    return spawn('bash', ['-c', script], {
-        env: {
-            ...process.env,
-            TERM: 'dumb',
-            PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin',
-            ...configEnv()
-        }
-    });
+// Build env for child processes
+function childEnv() {
+    return {
+        ...process.env,
+        TERM: 'dumb',
+        PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin',
+        ...configEnv()
+    };
+}
+
+// Run a shell command (we're inside WSL already!)
+function runCmd(script) {
+    return spawn('bash', ['-c', script], { env: childEnv() });
+}
+
+// Run a Python script
+function runPython(scriptPath, args) {
+    const pyArgs = [scriptPath];
+    if (args) pyArgs.push(...args.split(/\s+/));
+    return spawn('python3', pyArgs, { env: childEnv() });
 }
 
 // Expose config to frontend
@@ -88,14 +98,21 @@ app.get('/api/run', (req, res) => {
     const command = COMMANDS[cmdId];
     if (!command) return res.status(400).json({ error: 'Unknown command: ' + cmdId });
 
-    let script;
-    if (command.file) {
-        const argStr = args ? ' ' + args : '';
-        script = 'bash ' + path.join(SCRIPTS_DIR, command.file) + argStr;
-    } else if (typeof command.script === 'function') {
-        script = command.script(args);
+    let proc;
+    if (command.pyfile) {
+        // Python script
+        proc = runPython(path.join(SCRIPTS_DIR, command.pyfile), args);
     } else {
-        script = command.script;
+        let script;
+        if (command.file) {
+            const argStr = args ? ' ' + args : '';
+            script = 'bash ' + path.join(SCRIPTS_DIR, command.file) + argStr;
+        } else if (typeof command.script === 'function') {
+            script = command.script(args);
+        } else {
+            script = command.script;
+        }
+        proc = runCmd(script);
     }
 
     res.writeHead(200, {
@@ -104,7 +121,7 @@ app.get('/api/run', (req, res) => {
         Connection: 'keep-alive',
     });
 
-    const proc = runBash(script);
+    // proc already created above
     let output = '';
 
     proc.stdout.on('data', (d) => {
@@ -141,24 +158,24 @@ function reg(id, label, group, icon, opts) {
     }
 }
 
-// === Status ===
-reg('status', 'Node Status', 'status', '🟢', { file: 'status.sh' });
-reg('services', 'Services Status', 'status', '⚙️', { file: 'services.sh' });
-reg('delegations', 'Delegations', 'status', '🤝', { file: 'delegations.sh' });
-reg('validators', 'All Validators', 'status', '📊', { file: 'validators.sh' });
-reg('peers', 'Connected Peers', 'status', '🌐', { file: 'peers.sh' });
+// === Status (all Python) ===
+reg('status', 'Node Status', 'status', '🟢', { pyfile: 'status.py' });
+reg('services', 'Services Status', 'status', '⚙️', { pyfile: 'services.py' });
+reg('delegations', 'Delegations', 'status', '🤝', { pyfile: 'delegations.py' });
+reg('validators', 'All Validators', 'status', '📊', { pyfile: 'validators.py' });
+reg('peers', 'Connected Peers', 'status', '🌐', { pyfile: 'peers.py' });
 
-// === Jobs (use $NODE_RPC from env) ===
-reg('list-jobs', 'List My Jobs', 'jobs', '📋', { file: 'list-jobs.sh' });
+// === Jobs (all Python) ===
+reg('list-jobs', 'List My Jobs', 'jobs', '📋', { pyfile: 'list-jobs.py' });
 reg('query-job', 'Query Job', 'jobs', '🔍', function (id) {
-    return 'republicd query computevalidation job ' + id + ' --node $NODE_RPC -o json 2>/dev/null | jq .';
+    return 'republicd query computevalidation job ' + id + ' --node $NODE_RPC -o json 2>&1 | jq .';
 });
 reg('submit-self', 'Submit + Compute (Self)', 'jobs', '📤', { file: 'compute-job.sh' });
 reg('compute-job', 'Compute Job', 'jobs', '🖥️', function (id) {
     return 'bash ' + path.join(SCRIPTS_DIR, 'compute-job.sh') + ' ' + id;
 });
 reg('find-tx', 'Find TX', 'jobs', '🔎', function (txOrId) {
-    return 'republicd query tx ' + txOrId + ' --node $NODE_RPC -o json 2>/dev/null | jq .';
+    return 'republicd query tx ' + txOrId + ' --node $NODE_RPC -o json 2>&1 | jq .';
 });
 
 // === Service Control ===
