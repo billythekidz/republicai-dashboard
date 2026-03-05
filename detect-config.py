@@ -302,9 +302,12 @@ def detect(home_dir):
 # ─── Entry Point ────────────────────────────────────────────
 
 if __name__ == "__main__":
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    DEFAULT_OUTPUT = os.path.join(SCRIPT_DIR, "config.json")
+    
     parser = argparse.ArgumentParser(description="Auto-detect RepublicAI node config")
     parser.add_argument("--home", default=None, help="Explicit node home dir (skip auto-discovery)")
-    parser.add_argument("--output", default="/root/dashboard/config.json", help="Output config.json path")
+    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Output config.json path")
     parser.add_argument("--scan-only", action="store_true", help="Only scan for home dirs, don't generate config")
     args = parser.parse_args()
 

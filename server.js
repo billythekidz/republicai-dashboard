@@ -171,7 +171,7 @@ reg('svc-logs', 'Logs', 'services', '📜', function (s) { return 'journalctl -u
 reg('ctl-status', 'Full CTL Status', 'quick', '📊', { file: 'republic-ctl.sh' });
 reg('verify-info', 'Verification Info', 'quick', '📋', { file: 'verify-info.sh' });
 reg('docker-images', 'Docker Images', 'quick', '🐳', 'docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"');
-reg('detect-config', 'Re-detect Config', 'quick', '🔧', 'python3 /root/dashboard/detect-config.py --output /root/dashboard/config.json');
+reg('detect-config', 'Re-detect Config', 'quick', '🔧', 'python3 ' + path.join(__dirname, 'detect-config.py'));
 
 // === Custom ===
 reg('custom', 'Custom', 'custom', '⌨️', function (cmd) { return cmd; });

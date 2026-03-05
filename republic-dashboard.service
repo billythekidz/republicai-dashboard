@@ -4,8 +4,8 @@ After=network.target republicd.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/node /root/dashboard/server.js
-WorkingDirectory=/root/dashboard
+ExecStart=/usr/bin/node /root/republicai-dashboard/server.js
+WorkingDirectory=/root/republicai-dashboard
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin
 Restart=on-failure
 RestartSec=5
