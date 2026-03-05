@@ -140,32 +140,46 @@ def main():
     print()
     print("=== My Jobs ===")
     if valoper or wallet:
-        jobs_raw, _ = run(f"republicd query computevalidation list-job --node {rpc} -o json --limit 1000 --reverse", timeout=60)
-        try:
-            jobs_data = json.loads(jobs_raw)
-            all_jobs = jobs_data.get("jobs", jobs_data.get("job", []))
-            if not isinstance(all_jobs, list):
-                all_jobs = [all_jobs] if all_jobs else []
-            my_jobs = [j for j in all_jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
-            print(f"  Total on chain: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
-            print()
-            if my_jobs:
-                for j in sorted(my_jobs, key=lambda x: int(x.get("id", 0)), reverse=True):
-                    jid = j.get("id", "?")
-                    status = j.get("status", "?")
-                    rhash = j.get("result_hash", "") or "-"
-                    creator = j.get("creator", "")
-                    target = j.get("target_validator", "")
-                    print(f"  Job #{jid}")
-                    print(f"    Status:    {status}")
-                    print(f"    Hash:      {rhash}")
-                    print(f"    Creator:   {creator}")
-                    print(f"    Target:    {target}")
-                    print()
-            else:
-                print("  No jobs found for this validator/wallet.")
-        except Exception as e:
-            print(f"  Could not query jobs: {e}")
+        # Paginate to get ALL jobs
+        all_jobs = []
+        page_key = None
+        for page in range(100):
+            cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500 --reverse"
+            if page_key:
+                cmd += f' --page-key "{page_key}"'
+            raw, _ = run(cmd, timeout=60)
+            if not raw:
+                break
+            try:
+                data = json.loads(raw)
+            except:
+                break
+            jobs_page = data.get("jobs", data.get("job", []))
+            if not isinstance(jobs_page, list):
+                jobs_page = [jobs_page] if jobs_page else []
+            all_jobs.extend(jobs_page)
+            page_key = data.get("pagination", {}).get("next_key")
+            if not page_key:
+                break
+
+        my_jobs = [j for j in all_jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
+        print(f"  Total on chain: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
+        print()
+        if my_jobs:
+            for j in sorted(my_jobs, key=lambda x: int(x.get("id", 0)), reverse=True):
+                jid = j.get("id", "?")
+                status = j.get("status", "?")
+                rhash = j.get("result_hash", "") or "-"
+                creator = j.get("creator", "")
+                target = j.get("target_validator", "")
+                print(f"  Job #{jid}")
+                print(f"    Status:    {status}")
+                print(f"    Hash:      {rhash}")
+                print(f"    Creator:   {creator}")
+                print(f"    Target:    {target}")
+                print()
+        else:
+            print("  No jobs found for this validator/wallet.")
     else:
         print("  ⚠️ No WALLET_VALOPER or WALLET_ADDRESS set")
 

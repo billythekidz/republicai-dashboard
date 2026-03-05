@@ -16,26 +16,43 @@ def main():
     wallet = os.environ.get("WALLET_ADDRESS", "")
     rpc = os.environ.get("NODE_RPC", "tcp://localhost:26657")
 
-    # Fetch latest 1000 jobs (newest first, server-side)
-    MAX_JOBS = 1000
-    cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit {MAX_JOBS} --reverse --count-total"
-    raw, rc = run(cmd, timeout=60)
-    if not raw:
-        print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
-        sys.exit(1)
+    # Fetch ALL jobs with pagination (newest first)
+    all_jobs = []
+    page_key = None
+    for page in range(100):  # up to 100 pages
+        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500 --reverse"
+        if page == 0:
+            cmd += " --count-total"
+        if page_key:
+            cmd += f' --page-key "{page_key}"'
+        raw, rc = run(cmd, timeout=60)
+        if not raw:
+            if page == 0:
+                print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
+                sys.exit(1)
+            break
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            if page == 0:
+                print(f"ERROR: Invalid JSON: {e}")
+                print(f"First 200 chars: {raw[:200]}")
+                sys.exit(1)
+            break
 
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"ERROR: Invalid JSON: {e}")
-        print(f"First 200 chars: {raw[:200]}")
-        sys.exit(1)
+        jobs_page = data.get("jobs", data.get("job", []))
+        if not isinstance(jobs_page, list):
+            jobs_page = [jobs_page] if jobs_page else []
+        all_jobs.extend(jobs_page)
 
-    jobs = data.get("jobs", data.get("job", []))
-    if not isinstance(jobs, list):
-        jobs = [jobs] if jobs else []
+        pagination = data.get("pagination", {})
+        if page == 0:
+            total = pagination.get("total")
+        page_key = pagination.get("next_key")
+        if not page_key:
+            break
 
-    total = data.get("pagination", {}).get("total")
+    jobs = all_jobs
 
     # Count by status
     status_counts = {}
