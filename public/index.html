@@ -36,11 +36,9 @@
         <button data-cmd="list-jobs">📋 My Jobs</button>
         <button data-cmd="all-jobs">📜 All Jobs</button>
         <button data-cmd="job-history">📂 Job History</button>
-        <div class="input-row">
-          <input type="text" id="job-id-input" placeholder="Job ID or TX hash">
-          <button data-cmd="query-job" data-args-from="job-id-input">🔍 Query</button>
-          <button data-cmd="compute-job" data-args-from="job-id-input" class="warn">🖥️ Compute</button>
-        </div>
+        <input type="text" id="job-id-input" placeholder="Job ID or TX hash" style="width:100%;margin-bottom:4px">
+        <button data-cmd="query-job" data-args-from="job-id-input">🔍 Query Job</button>
+        <button data-cmd="compute-job" data-args-from="job-id-input" class="warn">🖥️ Compute Job</button>
         <button data-cmd="submit-self" class="warn">📤 Submit + Compute (Self)</button>
       </div>
 
