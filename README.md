@@ -1,7 +1,6 @@
 # RepublicAI Dashboard
 
-Lightweight web dashboard for managing a RepublicAI validator + GPU compute node.  
-Runs **inside WSL / Linux** for direct access to `republicd`, `docker`, `systemctl`.
+A **self-hosted** web dashboard for RepublicAI validators — install it on your own server to monitor and manage your validator + GPU compute node easily. Runs directly on your machine with full access to `republicd`, `docker`, and `systemctl`.
 
 ![Node.js](https://img.shields.io/badge/Node.js-22-green) ![Express](https://img.shields.io/badge/Express-4-blue) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
