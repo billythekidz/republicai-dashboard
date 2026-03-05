@@ -43,6 +43,10 @@ Runs **inside WSL / Linux** for direct access to `republicd`, `docker`, `systemc
   # Install if missing (Ubuntu/Debian)
   apt-get install -y python3
   ```
+- **Git**
+  ```bash
+  apt-get install -y git
+  ```
 
 ### 1. Clone
 
