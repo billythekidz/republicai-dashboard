@@ -192,7 +192,7 @@ reg('ctl-status', 'Full CTL Status', 'quick', '📊', 'echo "=== Service Status 
 reg('verify-info', 'Verification Info', 'quick', '📋', { pyfile: 'verify-info.py' });
 reg('docker-images', 'Docker Images', 'quick', '🐳', 'docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"');
 reg('detect-config', 'Re-detect Config', 'quick', '🔧', 'python3 ' + path.join(__dirname, 'detect-config.py'));
-reg('update-dashboard', '⬆️ Update Dashboard', 'quick', '🔄', 'cd ' + __dirname + ' && echo "=== Pulling latest from git ===" && git pull && echo "" && echo "=== Installing dependencies ===" && npm install --production && echo "" && echo "=== Restarting dashboard ===" && systemctl restart republic-dashboard && echo "✅ Dashboard updated and restarted!"');
+reg('update-dashboard', '⬆️ Update Dashboard', 'quick', '🔄', 'cd ' + __dirname + ' && echo "=== Pulling latest from git ===" && git pull && echo "" && echo "=== Installing dependencies ===" && npm install --omit=dev && echo "" && echo "✅ Updated! Restarting in 2s... (page will reload)" && nohup bash -c "sleep 2 && systemctl restart republic-dashboard" >/dev/null 2>&1 &');
 
 // === Custom ===
 reg('custom', 'Custom', 'custom', '⌨️', function (cmd) { return cmd; });
