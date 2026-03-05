@@ -1,6 +1,5 @@
 #!/bin/bash
 # list-jobs.sh — List compute jobs for this validator
-# Uses env vars injected by server.js from config.json
 VALOPER="${WALLET_VALOPER}"
 WALLET="${WALLET_ADDRESS}"
 RPC="${NODE_RPC:-tcp://localhost:26657}"
@@ -18,32 +17,27 @@ echo "Wallet:  $WALLET"
 echo "Valoper: $VALOPER"
 echo ""
 
-# Query jobs
-JOBS_JSON=$(republicd query computevalidation list-job --node "$RPC" -o json 2>/dev/null)
-if [ -z "$JOBS_JSON" ]; then
-    echo "ERROR: Could not query jobs (empty response)"
+# Query jobs — write to temp file (output can be 50KB+)
+republicd query computevalidation list-job --node "$RPC" -o json > /tmp/dashboard_jobs.json 2>/dev/null
+RC=$?
+
+if [ $RC -ne 0 ] || [ ! -s /tmp/dashboard_jobs.json ]; then
+    echo "ERROR: Could not query jobs (exit=$RC)"
     echo "Try: republicd query computevalidation list-job --node $RPC -o json"
     exit 1
 fi
 
-echo "$JOBS_JSON" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null
-if [ $? -ne 0 ]; then
-    echo "ERROR: Invalid JSON response"
-    echo "$JOBS_JSON" | head -3
-    exit 1
-fi
-
-echo "$JOBS_JSON" | WALLET_VALOPER="$VALOPER" WALLET_ADDRESS="$WALLET" python3 << 'PYEOF'
-import json, sys, os
+WALLET_VALOPER="$VALOPER" WALLET_ADDRESS="$WALLET" python3 << 'PYEOF'
+import json, os
 
 valoper = os.environ.get("WALLET_VALOPER", "")
 wallet = os.environ.get("WALLET_ADDRESS", "")
 
 try:
-    d = json.load(sys.stdin)
+    d = json.load(open("/tmp/dashboard_jobs.json"))
 except Exception as e:
     print(f"JSON parse error: {e}")
-    sys.exit(1)
+    exit(1)
 
 jobs = d.get("jobs", d.get("job", []))
 if not isinstance(jobs, list):
@@ -58,7 +52,7 @@ print()
 if not my:
     print("  No jobs found for this validator.")
 else:
-    for j in my:
+    for j in sorted(my, key=lambda x: int(x.get("id", 0)), reverse=True):
         jid = j.get("id", "?")
         status = j.get("status", "?")
         rhash = j.get("result_hash", "")[:30]
