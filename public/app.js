@@ -26,9 +26,19 @@ function copyLog() {
     const text = outputEl.textContent || '';
     navigator.clipboard.writeText(text).then(() => {
         const btn = document.getElementById('copy-log-btn');
-        btn.textContent = '✅';
-        setTimeout(() => { btn.textContent = '📋'; }, 1500);
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
     });
+}
+
+let lastQueriedJobId = '';
+let appendMode = false;
+
+function computeQueriedJob() {
+    if (lastQueriedJobId) {
+        appendMode = true;
+        runCommand('compute-job', lastQueriedJobId);
+    }
 }
 
 function setRunning(label) {
@@ -49,6 +59,20 @@ function setDone(code) {
     } else {
         shareBtn.classList.add('hidden');
     }
+    // Show compute button after query-job with a numeric Job ID
+    const computeBtn = document.getElementById('compute-queried-btn');
+    const jobInput = document.getElementById('job-id-input');
+    if (lastCmdId === 'query-job' && code === 0 && jobInput) {
+        const val = jobInput.value.trim();
+        if (/^[0-9]+$/.test(val)) {
+            lastQueriedJobId = val;
+            computeBtn.classList.remove('hidden');
+        } else {
+            computeBtn.classList.add('hidden');
+        }
+    } else if (lastCmdId !== 'compute-job') {
+        computeBtn.classList.add('hidden');
+    }
 }
 
 function runCommand(cmdId, args = '') {
@@ -57,8 +81,17 @@ function runCommand(cmdId, args = '') {
         currentSource = null;
     }
 
-    clearOutput();
+    if (appendMode) {
+        appendOutput('\n' + '='.repeat(60) + '\n', 'ansi-dim');
+        appendMode = false;
+    } else {
+        clearOutput();
+    }
     lastCmdId = cmdId;
+    // Hide compute button when starting new command (except compute-job itself)
+    if (cmdId !== 'compute-job') {
+        document.getElementById('compute-queried-btn').classList.add('hidden');
+    }
     const label = cmdId + (args ? ` (${args})` : '');
     setRunning(label);
 

@@ -81,7 +81,9 @@
       <div id="output-header">
         <span id="output-title">Output</span>
         <span id="output-spinner" class="hidden">⏳ Running...</span>
-        <button id="copy-log-btn" onclick="copyLog()" title="Copy output to clipboard">📋</button>
+        <button id="compute-queried-btn" class="hidden warn" onclick="computeQueriedJob()" title="Compute this job">🖥️
+          Compute</button>
+        <button id="copy-log-btn" onclick="copyLog()" title="Copy output to clipboard">Copy</button>
         <button id="share-peers-btn" class="hidden share-btn" onclick="openSharePeers()">📡 Share Peers</button>
         <div style="flex:1"></div>
         <button id="clear-btn" onclick="clearOutput()">Clear</button>
