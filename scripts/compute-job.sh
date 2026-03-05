@@ -122,12 +122,12 @@ if [ -f /root/inference.py ]; then
     docker run --rm --gpus all \
         -v "$JOBS_DIR/$JOB_ID:/output" \
         -v /root/inference.py:/app/inference.py \
-        "$INFERENCE_IMAGE" 2>&1 | tail -5
+        "$INFERENCE_IMAGE" 2>&1
 else
     echo "[$(ts)]    Using built-in inference.py"
     docker run --rm --gpus all \
         -v "$JOBS_DIR/$JOB_ID:/output" \
-        "$INFERENCE_IMAGE" 2>&1 | tail -5
+        "$INFERENCE_IMAGE" 2>&1
 fi
 
 DOCKER_END=$(date +%s)
