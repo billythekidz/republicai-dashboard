@@ -94,7 +94,11 @@ def main():
     # GPU
     print()
     print("=== GPU ===")
-    gpu, rc = run("nvidia-smi --query-gpu=name,memory.total,memory.used,driver_version,temperature.gpu --format=csv,noheader")
+    gpu_query = "--query-gpu=name,memory.total,memory.used,driver_version,temperature.gpu --format=csv,noheader"
+    gpu, rc = run(f"nvidia-smi {gpu_query}")
+    if rc != 0 or not gpu:
+        # WSL fallback path
+        gpu, rc = run(f"/usr/lib/wsl/lib/nvidia-smi {gpu_query}")
     if rc == 0 and gpu:
         for line in gpu.split("\n"):
             print(f"  {line}")
