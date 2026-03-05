@@ -37,15 +37,11 @@
         <button data-cmd="all-jobs">📜 All Jobs</button>
         <button data-cmd="job-history">📂 Job History</button>
         <div class="input-row">
-          <input type="text" id="job-id-input" placeholder="Job ID">
-          <button data-cmd="query-job" data-args-from="job-id-input">🔍</button>
-          <button data-cmd="compute-job" data-args-from="job-id-input" class="warn">🖥️</button>
+          <input type="text" id="job-id-input" placeholder="Job ID or TX hash">
+          <button data-cmd="query-job" data-args-from="job-id-input">🔍 Query</button>
+          <button data-cmd="compute-job" data-args-from="job-id-input" class="warn">🖥️ Compute</button>
         </div>
         <button data-cmd="submit-self" class="warn">📤 Submit + Compute (Self)</button>
-        <div class="input-row">
-          <input type="text" id="find-tx-input" placeholder="Job ID for TX">
-          <button data-cmd="find-tx" data-args-from="find-tx-input">🔎 Find TX</button>
-        </div>
       </div>
 
       <div class="group" data-group="services">

@@ -171,44 +171,41 @@ reg('share-peers', '🔗 Share Peers', 'status', '📡', { pyfile: 'share-peers.
 reg('list-jobs', 'List My Jobs', 'jobs', '📋', { pyfile: 'list-jobs.py' });
 reg('all-jobs', 'All Jobs', 'jobs', '📜', { pyfile: 'all-jobs.py' });
 reg('job-history', 'Job History', 'jobs', '📂', { pyfile: 'job-history.py' });
-reg('query-job', 'Query Job', 'jobs', '🔍', function (id) {
-    return 'republicd query computevalidation job ' + id + ' --node $NODE_RPC -o json 2>&1 | jq .';
-});
-reg('submit-self', 'Submit + Compute (Self)', 'jobs', '📤', { file: 'compute-job.sh' });
-reg('compute-job', 'Compute Job', 'jobs', '🖥️', function (id) {
-    return 'bash ' + path.join(SCRIPTS_DIR, 'compute-job.sh') + ' ' + id;
-});
-reg('find-tx', 'Find TX', 'jobs', '🔎', function (input) {
+reg('query-job', 'Query Job', 'jobs', '🔍', function (input) {
     input = (input || '').trim();
     if (/^[0-9]+$/.test(input)) {
-        // Numeric = Job ID → search TX + show job details
-        return 'echo "🔍 Searching TX for Job #' + input + '..." && echo "" && ' +
-            'TXJSON=$(republicd query txs --query "job_submitted.job_id=\'' + input + '\'" --node $NODE_RPC -o json 2>&1) && ' +
-            'TXHASH=$(echo "$TXJSON" | jq -r ".txs[0].txhash // empty") && ' +
-            'if [ -z "$TXHASH" ]; then echo "❌ No TX found for Job #' + input + '"; else ' +
-            'echo "=== Transaction ===" && echo "$TXJSON" | jq -r \'.txs[0] | ' +
-            '"  TX Hash:    " + .txhash + "\\n" + ' +
-            '"  Height:     " + .height + "\\n" + ' +
-            '"  Gas Used:   " + .gas_used + " / " + .gas_wanted + "\\n" + ' +
-            '"  Timestamp:  " + .timestamp + "\\n" + ' +
-            '"  Code:       " + (.code // 0 | tostring)\' && echo "" && ' +
-            'echo "=== Messages ===" && echo "$TXJSON" | jq -r \'.txs[0].tx.body.messages[] | ' +
-            '"  Type:       " + ."@type" + "\\n" + ' +
-            '(to_entries | map("  " + .key + ": " + (.value | tostring)) | join("\\n"))\' && echo "" && ' +
-            'echo "=== Events ===" && echo "$TXJSON" | jq -r \'.txs[0].events[] | ' +
-            '"  [" + .type + "]" + "\\n" + ' +
-            '(.attributes | map("    " + .key + " = " + .value) | join("\\n"))\' && echo "" && ' +
-            'echo "=== Current Job Status ===" && ' +
+        // Numeric = Job ID → show job details + find TX
+        return 'echo "🔍 Job #' + input + ' — Full Details" && echo "" && ' +
+            'echo "=== Job Status ===" && ' +
             'republicd query computevalidation job ' + input + ' --node $NODE_RPC -o json 2>&1 | jq -r \'.job | ' +
             '"  ID:         " + .id + "\\n" + ' +
             '"  Status:     " + .status + "\\n" + ' +
             '"  Creator:    " + .creator + "\\n" + ' +
             '"  Target:     " + .target_validator + "\\n" + ' +
             '"  Hash:       " + (.result_hash // "-") + "\\n" + ' +
-            '"  Fetch URL:  " + (.result_fetch_endpoint // "-")\'; fi';
+            '"  Fetch URL:  " + (.result_fetch_endpoint // "-") + "\\n" + ' +
+            '"  Inference:  " + (.inference_image // "-") + "\\n" + ' +
+            '"  Verify:     " + (.verification_image // "-")\' && echo "" && ' +
+            'echo "=== Submit Transaction ===" && ' +
+            'TXJSON=$(republicd query txs --query "job_submitted.job_id=\'' + input + '\'" --node $NODE_RPC -o json 2>&1) && ' +
+            'TXHASH=$(echo "$TXJSON" | jq -r ".txs[0].txhash // empty") && ' +
+            'if [ -z "$TXHASH" ]; then echo "  No submit TX found"; else ' +
+            'echo "$TXJSON" | jq -r \'.txs[0] | ' +
+            '"  TX Hash:    " + .txhash + "\\n" + ' +
+            '"  Height:     " + .height + "\\n" + ' +
+            '"  Gas Used:   " + .gas_used + " / " + .gas_wanted + "\\n" + ' +
+            '"  Timestamp:  " + .timestamp + "\\n" + ' +
+            '"  Code:       " + (.code // 0 | tostring)\' && echo "" && ' +
+            'echo "=== Events ===" && echo "$TXJSON" | jq -r \'.txs[0].events[] | ' +
+            '"  [" + .type + "]" + "\\n" + ' +
+            '(.attributes | map("    " + .key + " = " + .value) | join("\\n"))\'; fi';
     }
     // Otherwise treat as TX hash
     return 'republicd query tx ' + input + ' --node $NODE_RPC -o json 2>&1 | jq .';
+});
+reg('submit-self', 'Submit + Compute (Self)', 'jobs', '📤', { file: 'compute-job.sh' });
+reg('compute-job', 'Compute Job', 'jobs', '🖥️', function (id) {
+    return 'bash ' + path.join(SCRIPTS_DIR, 'compute-job.sh') + ' ' + id;
 });
 
 // === Service Control ===
