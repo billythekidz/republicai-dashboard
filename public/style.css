@@ -207,17 +207,17 @@ main {
   animation: pulse 1s infinite;
 }
 
-#output-spinner.hidden {
-  display: none;
-}
-
 @keyframes pulse {
   50% {
     opacity: 0.5;
   }
 }
 
-#clear-btn {
+.hidden {
+  display: none !important;
+}
+
+#output-header button {
   padding: 3px 10px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -227,7 +227,7 @@ main {
   font-size: 11px;
 }
 
-#clear-btn:hover {
+#output-header button:hover {
   color: var(--text);
   border-color: var(--accent);
 }
