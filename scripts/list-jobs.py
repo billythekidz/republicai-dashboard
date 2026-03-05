@@ -73,8 +73,13 @@ def main():
 
     my = [j for j in jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
 
-    max_id = max((int(j.get("id", 0)) for j in jobs), default=0)
-    print(f"Total jobs on chain: {max_id}  |  Fetched: {len(jobs)}")
+    # Get actual total via quick --reverse --limit 1
+    latest_raw, _ = run(f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1")
+    try:
+        total_on_chain = json.loads(latest_raw).get("jobs", [{}])[0].get("id", "?")
+    except:
+        total_on_chain = "?"
+    print(f"Total jobs on chain: {total_on_chain}  |  Fetched: {len(jobs)}")
     print(f"My jobs (target/creator): {len(my)}")
     print()
 

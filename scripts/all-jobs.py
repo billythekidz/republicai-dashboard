@@ -63,9 +63,13 @@ def main():
         s = j.get("status", "unknown")
         status_counts[s] = status_counts.get(s, 0) + 1
 
-    # Use highest job ID as total (IDs are sequential)
-    max_id = max((int(j.get("id", 0)) for j in jobs), default=0)
-    print(f"Total jobs on chain: {max_id}  |  Fetched: {len(jobs)}")
+    # Get actual total via quick --reverse --limit 1 (first result = latest ID)
+    latest_raw, _ = run(f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1")
+    try:
+        total_on_chain = json.loads(latest_raw).get("jobs", [{}])[0].get("id", "?")
+    except:
+        total_on_chain = "?"
+    print(f"Total jobs on chain: {total_on_chain}  |  Fetched: {len(jobs)}")
     for s, c in sorted(status_counts.items()):
         print(f"  {s}: {c}")
     print()

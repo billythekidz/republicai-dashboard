@@ -169,8 +169,13 @@ def main():
                 break
 
         my_jobs = [j for j in all_jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
-        max_id = max((int(j.get("id", 0)) for j in all_jobs), default=0)
-        print(f"  Total on chain: {max_id}  |  Fetched: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
+        # Quick query to get latest job ID = total on chain
+        latest_raw, _ = run(f"republicd query computevalidation list-job --node {rpc} -o json --reverse --limit 1")
+        try:
+            total_on_chain = json.loads(latest_raw).get("jobs", [{}])[0].get("id", "?")
+        except:
+            total_on_chain = "?"
+        print(f"  Total on chain: {total_on_chain}  |  Fetched: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
         print()
         if my_jobs:
             for j in sorted(my_jobs, key=lambda x: int(x.get("id", 0)), reverse=True):
