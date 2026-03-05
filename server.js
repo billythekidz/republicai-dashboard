@@ -58,6 +58,7 @@ function childEnv() {
     return {
         ...process.env,
         TERM: 'dumb',
+        HOME: process.env.HOME || '/root',
         PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin',
         ...configEnv()
     };
