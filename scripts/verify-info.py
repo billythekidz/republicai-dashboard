@@ -126,6 +126,38 @@ def main():
     print(f"  Connected peers: {len(peers)}")
     listening = net.get("result", {}).get("listening", "?")
     print(f"  Listening:       {listening}")
+    # My Jobs
+    print()
+    print("=== My Jobs ===")
+    if valoper or wallet:
+        jobs_raw, _ = run(f"republicd query computevalidation list-job --node {rpc} -o json --limit 1000 --reverse", timeout=60)
+        try:
+            jobs_data = json.loads(jobs_raw)
+            all_jobs = jobs_data.get("jobs", jobs_data.get("job", []))
+            if not isinstance(all_jobs, list):
+                all_jobs = [all_jobs] if all_jobs else []
+            my_jobs = [j for j in all_jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
+            print(f"  Total on chain: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
+            print()
+            if my_jobs:
+                for j in sorted(my_jobs, key=lambda x: int(x.get("id", 0)), reverse=True):
+                    jid = j.get("id", "?")
+                    status = j.get("status", "?")
+                    rhash = j.get("result_hash", "") or "-"
+                    creator = j.get("creator", "")
+                    target = j.get("target_validator", "")
+                    print(f"  Job #{jid}")
+                    print(f"    Status:    {status}")
+                    print(f"    Hash:      {rhash}")
+                    print(f"    Creator:   {creator}")
+                    print(f"    Target:    {target}")
+                    print()
+            else:
+                print("  No jobs found for this validator/wallet.")
+        except Exception as e:
+            print(f"  Could not query jobs: {e}")
+    else:
+        print("  ⚠️ No WALLET_VALOPER or WALLET_ADDRESS set")
 
     print()
     print("=" * 60)
