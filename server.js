@@ -189,7 +189,7 @@ reg('svc-logs', 'Logs', 'services', '📜', function (s) { return 'journalctl -u
 
 // === Quick ===
 reg('ctl-status', 'Full CTL Status', 'quick', '📊', 'echo "=== Service Status ===" && for s in republicd republic-sidecar republic-autocompute republic-dashboard; do printf "%-30s %s\\n" "$s" "$(systemctl is-active $s 2>/dev/null || echo inactive)"; done && echo && echo "=== Republic Node ===" && republicd status --node $NODE_RPC 2>&1 | jq -r \'.node_info.moniker + " | height: " + .sync_info.latest_block_height + " | catching_up: " + (.sync_info.catching_up|tostring)\' 2>/dev/null || echo "node unreachable"');
-reg('verify-info', 'Verification Info', 'quick', '📋', 'echo "=== GPU Info ===" && nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader 2>/dev/null || echo "No NVIDIA GPU found" && echo && echo "=== Docker ===" && docker --version 2>/dev/null && echo && echo "=== Node Info ===" && republicd version 2>&1 && echo && echo "=== Wallet ===" && republicd keys show $WALLET_NAME -a --home $NODE_HOME --keyring-backend $KEYRING_BACKEND 2>&1');
+reg('verify-info', 'Verification Info', 'quick', '📋', { pyfile: 'verify-info.py' });
 reg('docker-images', 'Docker Images', 'quick', '🐳', 'docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"');
 reg('detect-config', 'Re-detect Config', 'quick', '🔧', 'python3 ' + path.join(__dirname, 'detect-config.py'));
 
