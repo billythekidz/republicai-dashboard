@@ -60,8 +60,14 @@ def main():
         for j in sorted(my, key=lambda x: int(x.get("id", 0)), reverse=True):
             jid = j.get("id", "?")
             status = j.get("status", "?")
-            rhash = j.get("result_hash", "")[:30]
-            print(f"  Job #{jid:>4s} | {status:25s} | hash={rhash}")
+            rhash = j.get("result_hash", "")
+            creator = j.get("creator", "")
+            target = j.get("target_validator", "")
+            print(f"  Job #{jid:>4s} | {status}")
+            print(f"           hash: {rhash}")
+            print(f"           creator: {creator}")
+            print(f"           target:  {target}")
+            print()
 
 if __name__ == "__main__":
     main()
