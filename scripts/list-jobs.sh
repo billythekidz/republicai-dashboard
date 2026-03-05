@@ -17,8 +17,8 @@ echo "Wallet:  $WALLET"
 echo "Valoper: $VALOPER"
 echo ""
 
-# Query jobs — write to temp file (output can be 50KB+)
-republicd query computevalidation list-job --node "$RPC" -o json > /tmp/dashboard_jobs.json 2>/dev/null
+# Query jobs — republicd may output to stderr, capture both
+republicd query computevalidation list-job --node "$RPC" -o json > /tmp/dashboard_jobs.json 2>&1
 RC=$?
 
 if [ $RC -ne 0 ] || [ ! -s /tmp/dashboard_jobs.json ]; then

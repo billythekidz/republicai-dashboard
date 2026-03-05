@@ -14,8 +14,8 @@ fi
 echo "Valoper: $VALOPER"
 echo ""
 
-republicd query staking validator "$VALOPER" --node "$RPC" -o json > /tmp/val_info.json 2>/dev/null
-republicd query staking delegations-to "$VALOPER" --node "$RPC" -o json > /tmp/delegations.json 2>/dev/null
+republicd query staking validator "$VALOPER" --node "$RPC" -o json > /tmp/val_info.json 2>&1
+republicd query staking delegations-to "$VALOPER" --node "$RPC" -o json > /tmp/delegations.json 2>&1
 python3 << 'PYEOF'
 import json
 try:

@@ -20,13 +20,13 @@ BLOCK=$(echo "$STATUS_JSON" | jq -r '.result.sync_info.latest_block_height')
 SYNCING=$(echo "$STATUS_JSON" | jq -r '.result.sync_info.catching_up')
 PEERS=$(curl -s "$RPC_HTTP/net_info" | jq -r '.result.n_peers')
 
-VAL_RAW=$(republicd query staking validator "$VALOPER" --node "$RPC" -o json 2>/dev/null)
+VAL_RAW=$(republicd query staking validator "$VALOPER" --node "$RPC" -o json 2>&1)
 TOKENS=$(echo "$VAL_RAW" | jq -r '(.validator.tokens // .tokens) // "0"')
 VAL_STATUS=$(echo "$VAL_RAW" | jq -r '(.validator.status // .status) // "?"')
 MONIKER=$(echo "$VAL_RAW" | jq -r '(.validator.description.moniker // .description.moniker) // "?"')
 JAILED=$(echo "$VAL_RAW" | jq -r '(.validator.jailed // .jailed) // false')
 
-BAL_JSON=$(republicd query bank balances "$WALLET" --node "$RPC" -o json 2>/dev/null)
+BAL_JSON=$(republicd query bank balances "$WALLET" --node "$RPC" -o json 2>&1)
 BALANCE=$(echo "$BAL_JSON" | jq -r '.balances[] | select(.denom=="arai") | .amount' 2>/dev/null)
 BALANCE=${BALANCE:-0}
 
