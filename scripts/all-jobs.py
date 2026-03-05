@@ -16,22 +16,41 @@ def main():
     wallet = os.environ.get("WALLET_ADDRESS", "")
     rpc = os.environ.get("NODE_RPC", "tcp://localhost:26657")
 
-    # Query all jobs
-    raw, rc = run(f"republicd query computevalidation list-job --node {rpc} -o json", timeout=60)
-    if not raw:
-        print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
-        sys.exit(1)
+    # Query all jobs with pagination
+    all_jobs = []
+    page_key = None
+    for page in range(20):  # max 20 pages
+        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500"
+        if page_key:
+            cmd += f' --page-key "{page_key}"'
+        raw, rc = run(cmd, timeout=60)
+        if not raw:
+            if page == 0:
+                print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
+                sys.exit(1)
+            break
 
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"ERROR: Invalid JSON: {e}")
-        print(f"First 200 chars: {raw[:200]}")
-        sys.exit(1)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            if page == 0:
+                print(f"ERROR: Invalid JSON: {e}")
+                print(f"First 200 chars: {raw[:200]}")
+                sys.exit(1)
+            break
 
-    jobs = data.get("jobs", data.get("job", []))
-    if not isinstance(jobs, list):
-        jobs = [jobs] if jobs else []
+        jobs_page = data.get("jobs", data.get("job", []))
+        if not isinstance(jobs_page, list):
+            jobs_page = [jobs_page] if jobs_page else []
+        all_jobs.extend(jobs_page)
+
+        # Check for next page
+        pagination = data.get("pagination", {})
+        page_key = pagination.get("next_key")
+        if not page_key:
+            break
+
+    jobs = all_jobs
 
     # Count by status
     status_counts = {}
