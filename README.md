@@ -9,16 +9,19 @@ Runs **inside WSL / Linux** for direct access to `republicd`, `docker`, `systemc
 
 | Category | Actions |
 |------------|---------|
-| **Status** | Node health, services, delegations, validators, peers |
-| **Jobs** | List jobs, query by ID, submit+compute, find TX hash |
+| **Status** | Node health, services, delegations, validators (100 bonded w/ pagination), peers |
+| **Share Peers** | One-click shareable command — merge + dedup peers into another node's config |
+| **Jobs** | List jobs (full hashes + creator/target), query by ID, submit+compute, find TX hash |
 | **Services** | Start / Stop / Restart / Logs for any systemd service |
 | **Quick Actions** | Full CTL status, verification info, docker images, re-detect config |
 | **Custom** | Run any bash command directly |
 
 - ⚡ **Real-time output** via Server-Sent Events (SSE)
 - 🖥️ **Health bar** auto-refreshes on load (block height, sync, peers, balance)
-- 🔧 **Auto-detect** node configuration (ports, wallet, home directory)
-- 🔧 **Zero build step** — vanilla HTML/CSS/JS frontend
+- � **Share Peers** button with copy-to-clipboard modal (merge + dedup, no peer loss)
+- �🔧 **Auto-detect** node configuration (ports, wallet, home directory)
+- � **Python scripts** — robust subprocess handling, env-var driven, no bash fragility
+- �🔧 **Zero build step** — vanilla HTML/CSS/JS frontend
 
 ---
 
@@ -122,13 +125,14 @@ The service will:
 │   ├── index.html         # Dashboard UI
 │   ├── style.css          # Dark theme
 │   └── app.js             # Client-side SSE + health bar
-└── scripts/               # Python scripts (use env vars from config)
-    ├── status.py           # Node health + JSON for header
+└── scripts/               # Python + Bash scripts (env vars injected from config)
+    ├── status.py           # Node health + JSON for health bar header
     ├── services.py         # Systemd + Docker status
     ├── delegations.py      # Staking delegations
-    ├── validators.py       # Bonded validators ranked (marks YOUR validator)
-    ├── peers.py            # Connected peers
-    ├── list-jobs.py        # Compute jobs targeting this validator
+    ├── validators.py       # All bonded validators (paginated, up to 200/page)
+    ├── peers.py            # Connected peers via RPC
+    ├── share-peers.py      # Generate merge+dedup peer sharing command
+    ├── list-jobs.py        # Compute jobs (full hash, creator, target)
     ├── compute-job.sh      # Full pipeline: submit → inference → result
     ├── republic-ctl.sh     # Service control
     └── verify-info.sh      # GPU verification form data
@@ -157,13 +161,16 @@ Scripts receive these env vars from `config.json` (injected by `server.js`):
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `NODE_HOME` | republicd home directory | `/root/.republicd` |
-| `NODE_RPC` | RPC endpoint | `tcp://localhost:26657` |
+| `NODE_RPC` | RPC endpoint (tcp) | `tcp://localhost:26657` |
+| `NODE_RPC_HTTP` | RPC endpoint (http) | `http://localhost:26657` |
 | `NODE_RPC_PORT` | RPC port | `26657` |
 | `NODE_API` | API endpoint | `http://localhost:1317` |
+| `NODE_GRPC` | gRPC endpoint | `localhost:9090` |
 | `WALLET_NAME` | Default wallet name | `my-wallet` |
 | `WALLET_ADDRESS` | Wallet bech32 address | `rai1...` |
 | `WALLET_VALOPER` | Validator operator address | `raivaloper1...` |
 | `KEYRING_BACKEND` | Keyring backend | `test` |
+| `DOCKER_INFERENCE_IMAGE` | Docker inference image | `republic-llm-inference:latest` |
 
 ### Custom Port
 
