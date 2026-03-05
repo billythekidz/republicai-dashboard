@@ -30,11 +30,12 @@ def main():
     print(f"Valoper: {valoper}")
     print()
 
-    # Query jobs with pagination
+    # Pagination (no --reverse: it breaks --page-key)
     all_jobs = []
+    seen_ids = set()
     page_key = None
-    for page in range(20):
-        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500 --reverse"
+    for page in range(100):
+        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500"
         if page_key:
             cmd += f' --page-key "{page_key}"'
         raw, rc = run(cmd, timeout=60)
@@ -56,7 +57,12 @@ def main():
         jobs_page = data.get("jobs", data.get("job", []))
         if not isinstance(jobs_page, list):
             jobs_page = [jobs_page] if jobs_page else []
-        all_jobs.extend(jobs_page)
+        new_jobs = [j for j in jobs_page if j.get("id") not in seen_ids]
+        if not new_jobs and page > 0:
+            break
+        for j in new_jobs:
+            seen_ids.add(j.get("id"))
+        all_jobs.extend(new_jobs)
 
         pagination = data.get("pagination", {})
         page_key = pagination.get("next_key")
