@@ -178,8 +178,14 @@ reg('submit-self', 'Submit + Compute (Self)', 'jobs', '📤', { file: 'compute-j
 reg('compute-job', 'Compute Job', 'jobs', '🖥️', function (id) {
     return 'bash ' + path.join(SCRIPTS_DIR, 'compute-job.sh') + ' ' + id;
 });
-reg('find-tx', 'Find TX', 'jobs', '🔎', function (txOrId) {
-    return 'republicd query tx ' + txOrId + ' --node $NODE_RPC -o json 2>&1 | jq .';
+reg('find-tx', 'Find TX', 'jobs', '🔎', function (input) {
+    input = (input || '').trim();
+    if (/^[0-9]+$/.test(input)) {
+        // Numeric = Job ID → search TX events for that job
+        return 'echo "🔍 Searching TX for Job #' + input + '..." && republicd query txs --query "job_submitted.job_id=\'' + input + '\'" --node $NODE_RPC -o json 2>&1 | jq -r \'.txs[] | "TX: " + .txhash + " | Height: " + .height\'';
+    }
+    // Otherwise treat as TX hash
+    return 'republicd query tx ' + input + ' --node $NODE_RPC -o json 2>&1 | jq .';
 });
 
 // === Service Control ===
