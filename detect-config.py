@@ -14,7 +14,9 @@ Usage:
   python3 detect-config.py --home /root/.republicd  # explicit home
   python3 detect-config.py --output /path/config.json
 """
-import json, re, os, sys, subprocess, argparse, glob
+import json, re, os, sys, subprocess, argparse, glob, socket
+
+DASHBOARD_PORT = 3847
 
 # ─── Helpers ────────────────────────────────────────────────
 
@@ -50,6 +52,16 @@ def parse_toml_simple(filepath):
 def extract_port(addr, default=None):
     m = re.search(r':(\d+)$', str(addr))
     return int(m.group(1)) if m else default
+
+def port_is_available(port):
+    """Check if a port is free (not in use by any process)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(1)
+            s.bind(('', port))
+            return True
+    except OSError:
+        return False
 
 def extract_host(addr, default="localhost"):
     m = re.match(r'(?:tcp://|http://|https://)?([^:]+)', str(addr))
@@ -352,6 +364,47 @@ if __name__ == "__main__":
     # Step 3: Detect
     print(f"\nDetecting configuration from {home}...")
     config = detect(home)
+
+    # Step 3b: Port conflict detection
+    print(f"\nChecking port conflicts...")
+    port_fields = [
+        ('rpc', 'ports.rpc'),
+        ('p2p', 'ports.p2p'),
+        ('api', 'ports.api'),
+        ('grpc', 'ports.grpc'),
+        ('jsonrpc', 'ports.jsonrpc'),
+    ]
+    conflicts_found = False
+    for label, key_path in port_fields:
+        port = config['ports'][label]
+        issues = []
+        if port == DASHBOARD_PORT:
+            issues.append(f"conflicts with dashboard port {DASHBOARD_PORT}")
+        if not port_is_available(port):
+            issues.append("port already in use")
+        if issues:
+            conflicts_found = True
+            original = port
+            # Find next available port
+            candidate = port + 1
+            while candidate < port + 100:
+                if candidate != DASHBOARD_PORT and port_is_available(candidate):
+                    break
+                candidate += 1
+            print(f"  ⚠️  {label} port {original} — {', '.join(issues)}")
+            print(f"       → suggested free port: {candidate}")
+            config['ports'][label] = candidate
+            # Update endpoints that use this port
+            if label == 'rpc':
+                h = config['ports']['rpc_host']
+                config['endpoints']['rpc'] = f'tcp://{h}:{candidate}'
+                config['endpoints']['rpc_http'] = f'http://{h}:{candidate}'
+            elif label == 'api' and config['ports']['api_enabled']:
+                config['endpoints']['api'] = f'http://localhost:{candidate}'
+            elif label == 'grpc' and config['ports']['grpc_enabled']:
+                config['endpoints']['grpc'] = f'localhost:{candidate}'
+    if not conflicts_found:
+        print("  ✅ No port conflicts detected")
     
     print(f"\n{'='*50}")
     print(f"  Node:     {config['node']['moniker']} ({config['node']['chain_id']})")
