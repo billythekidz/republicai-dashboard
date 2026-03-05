@@ -16,6 +16,8 @@ RESULT_BASE_URL="${RESULT_BASE_URL:-https://republicai.devn.cloud}"
 INFERENCE_IMAGE="republic-llm-inference:latest"
 VERIFY_IMAGE="example-verification:latest"
 KB="${KEYRING_BACKEND:-test}"
+LOGS_DIR="/var/lib/republic/logs"
+mkdir -p "$LOGS_DIR"
 
 VALOPER="${WALLET_VALOPER:-$(republicd keys show "$WALLET_NAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)}"
 WALLET="${WALLET_ADDRESS:-$(republicd keys show "$WALLET_NAME" -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)}"
@@ -238,3 +240,22 @@ else
     echo ""
     echo "⚠️  Status is '$FINAL_STATUS' — check TX: $RESULT_TX"
 fi
+
+# ── Save log ──────────────────────────────────────────────
+LOG_FILE="$LOGS_DIR/job-${JOB_ID}.log"
+cat <<EOF > "$LOG_FILE"
+=== Compute Job #$JOB_ID ===
+Timestamp:       $(ts)
+Final Status:    $FINAL_STATUS
+Result Hash:     $FINAL_HASH
+Submit TX:       ${SUBMIT_TX:-N/A}
+Result TX:       $RESULT_TX
+Inference Time:  ${DOCKER_DURATION}s
+Result Size:     $RESULT_SIZE bytes
+Creator:         $JOB_CREATOR
+Target:          $JOB_TARGET
+Wallet:          $WALLET
+Valoper:         $VALOPER
+EOF
+echo ""
+echo "📝 Log saved: $LOG_FILE"
