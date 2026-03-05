@@ -13,18 +13,28 @@ def main():
     valoper = os.environ.get("WALLET_VALOPER", "")
     rpc = os.environ.get("NODE_RPC", "tcp://localhost:26657")
 
-    raw = run(f"republicd query staking validators --node {rpc} -o json", timeout=30)
-    if not raw:
-        print("ERROR: Could not query validators")
-        sys.exit(1)
+    # Fetch all validators with pagination
+    all_validators = []
+    page_key = None
+    for _ in range(10):  # max 10 pages
+        cmd = f"republicd query staking validators --node {rpc} -o json --page-limit 200"
+        if page_key:
+            cmd += f' --page-key "{page_key}"'
+        raw = run(cmd, timeout=30)
+        if not raw:
+            break
+        try:
+            data = json.loads(raw)
+        except:
+            print("ERROR: Invalid JSON response")
+            sys.exit(1)
+        all_validators.extend(data.get("validators", []))
+        # Check for next page
+        page_key = data.get("pagination", {}).get("next_key")
+        if not page_key:
+            break
 
-    try:
-        data = json.loads(raw)
-    except:
-        print("ERROR: Invalid JSON response")
-        sys.exit(1)
-
-    validators = data.get("validators", [])
+    validators = all_validators
     bonded = [v for v in validators if v.get("status") == "BOND_STATUS_BONDED"]
     unbonded = len(validators) - len(bonded)
     bonded.sort(key=lambda v: int(v.get("tokens", 0)), reverse=True)
