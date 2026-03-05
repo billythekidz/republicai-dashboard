@@ -1,20 +1,27 @@
 #!/bin/bash
-# status.sh — Outputs health JSON for the dashboard header
-VALOPER=$(republicd keys show my-wallet --bech val -a --home /root/.republicd --keyring-backend test 2>/dev/null)
-WALLET=$(republicd keys show my-wallet -a --home /root/.republicd --keyring-backend test 2>/dev/null)
-STATUS_JSON=$(curl -s http://localhost:26657/status)
+# status.sh — Node health for dashboard header
+# Uses env vars: NODE_HOME, NODE_RPC, NODE_RPC_HTTP, WALLET_NAME, KEYRING_BACKEND
+HOME_DIR="${NODE_HOME:-/root/.republicd}"
+RPC="${NODE_RPC:-tcp://localhost:26657}"
+RPC_HTTP="${NODE_RPC_HTTP:-http://localhost:26657}"
+WNAME="${WALLET_NAME:-my-wallet}"
+KB="${KEYRING_BACKEND:-test}"
+RPC_PORT="${NODE_RPC_PORT:-26657}"
+
+VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+WALLET=$(republicd keys show "$WNAME" -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+STATUS_JSON=$(curl -s "$RPC_HTTP/status")
 BLOCK=$(echo "$STATUS_JSON" | jq -r '.result.sync_info.latest_block_height')
 SYNCING=$(echo "$STATUS_JSON" | jq -r '.result.sync_info.catching_up')
-PEERS=$(curl -s http://localhost:26657/net_info | jq -r '.result.n_peers')
+PEERS=$(curl -s "$RPC_HTTP/net_info" | jq -r '.result.n_peers')
 
-VAL_RAW=$(republicd query staking validator $VALOPER --node tcp://localhost:26657 -o json 2>/dev/null)
-# Handle both .validator.X and .X formats
+VAL_RAW=$(republicd query staking validator "$VALOPER" --node "$RPC" -o json 2>/dev/null)
 TOKENS=$(echo "$VAL_RAW" | jq -r '(.validator.tokens // .tokens) // "0"')
 VAL_STATUS=$(echo "$VAL_RAW" | jq -r '(.validator.status // .status) // "?"')
 MONIKER=$(echo "$VAL_RAW" | jq -r '(.validator.description.moniker // .description.moniker) // "?"')
 JAILED=$(echo "$VAL_RAW" | jq -r '(.validator.jailed // .jailed) // false')
 
-BAL_JSON=$(republicd query bank balances $WALLET --node tcp://localhost:26657 -o json 2>/dev/null)
+BAL_JSON=$(republicd query bank balances "$WALLET" --node "$RPC" -o json 2>/dev/null)
 BALANCE=$(echo "$BAL_JSON" | jq -r '.balances[] | select(.denom=="arai") | .amount' 2>/dev/null)
 BALANCE=${BALANCE:-0}
 

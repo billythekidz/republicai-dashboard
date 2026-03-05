@@ -1,13 +1,18 @@
 #!/bin/bash
-# list-jobs.sh — List jobs targeting our validator
-VALOPER=$(republicd keys show my-wallet --bech val -a --home /root/.republicd --keyring-backend test 2>/dev/null)
-WALLET=$(republicd keys show my-wallet -a --home /root/.republicd --keyring-backend test 2>/dev/null)
-republicd query computevalidation list-job --node tcp://localhost:26657 -o json 2>/dev/null > /tmp/jobs.json
+# list-jobs.sh — List compute jobs for this validator
+HOME_DIR="${NODE_HOME:-/root/.republicd}"
+RPC="${NODE_RPC:-tcp://localhost:26657}"
+WNAME="${WALLET_NAME:-my-wallet}"
+KB="${KEYRING_BACKEND:-test}"
 
-python3 << 'PYEOF'
+VALOPER=$(republicd keys show "$WNAME" --bech val -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+WALLET=$(republicd keys show "$WNAME" -a --home "$HOME_DIR" --keyring-backend "$KB" 2>/dev/null)
+republicd query computevalidation list-job --node "$RPC" -o json 2>/dev/null > /tmp/jobs.json
+
+python3 << PYEOF
 import json, os
-valoper = os.popen("republicd keys show my-wallet --bech val -a --home /root/.republicd --keyring-backend test 2>/dev/null").read().strip()
-wallet = os.popen("republicd keys show my-wallet -a --home /root/.republicd --keyring-backend test 2>/dev/null").read().strip()
+valoper = "$VALOPER"
+wallet = "$WALLET"
 d = json.load(open("/tmp/jobs.json"))
 jobs = d.get("jobs", d.get("job", []))
 my = [j for j in jobs if j.get("target_validator")==valoper or j.get("creator")==wallet]
