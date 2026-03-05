@@ -169,6 +169,7 @@ reg('share-peers', '🔗 Share Peers', 'status', '📡', { pyfile: 'share-peers.
 
 // === Jobs (all Python) ===
 reg('list-jobs', 'List My Jobs', 'jobs', '📋', { pyfile: 'list-jobs.py' });
+reg('all-jobs', 'All Jobs', 'jobs', '📜', { pyfile: 'all-jobs.py' });
 reg('query-job', 'Query Job', 'jobs', '🔍', function (id) {
     return 'republicd query computevalidation job ' + id + ' --node $NODE_RPC -o json 2>&1 | jq .';
 });
