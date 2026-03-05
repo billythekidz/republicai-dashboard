@@ -21,8 +21,6 @@ def main():
     page_key = None
     for page in range(100):  # up to 100 pages
         cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500 --reverse"
-        if page == 0:
-            cmd += " --count-total"
         if page_key:
             cmd += f' --page-key "{page_key}"'
         raw, rc = run(cmd, timeout=60)
@@ -46,8 +44,6 @@ def main():
         all_jobs.extend(jobs_page)
 
         pagination = data.get("pagination", {})
-        if page == 0:
-            total = pagination.get("total")
         page_key = pagination.get("next_key")
         if not page_key:
             break
@@ -60,8 +56,9 @@ def main():
         s = j.get("status", "unknown")
         status_counts[s] = status_counts.get(s, 0) + 1
 
-    total_str = total if total else str(len(jobs))
-    print(f"Showing latest {len(jobs)} jobs (total on chain: {total_str})")
+    # Use highest job ID as total (IDs are sequential)
+    max_id = max((int(j.get("id", 0)) for j in jobs), default=0)
+    print(f"Total jobs on chain: {max_id}  |  Fetched: {len(jobs)}")
     for s, c in sorted(status_counts.items()):
         print(f"  {s}: {c}")
     print()

@@ -34,10 +34,10 @@ def main():
     all_jobs = []
     page_key = None
     for page in range(20):
-        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500"
+        cmd = f"republicd query computevalidation list-job --node {rpc} -o json --limit 500 --reverse"
         if page_key:
             cmd += f' --page-key "{page_key}"'
-        raw, rc = run(cmd)
+        raw, rc = run(cmd, timeout=60)
         if not raw:
             if page == 0:
                 print(f"ERROR: Could not query jobs (exit={rc}, empty output)")
@@ -67,7 +67,8 @@ def main():
 
     my = [j for j in jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
 
-    print(f"Total jobs on chain: {len(jobs)}")
+    max_id = max((int(j.get("id", 0)) for j in jobs), default=0)
+    print(f"Total jobs on chain: {max_id}  |  Fetched: {len(jobs)}")
     print(f"My jobs (target/creator): {len(my)}")
     print()
 

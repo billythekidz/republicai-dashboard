@@ -163,7 +163,8 @@ def main():
                 break
 
         my_jobs = [j for j in all_jobs if j.get("target_validator") == valoper or j.get("creator") == wallet]
-        print(f"  Total on chain: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
+        max_id = max((int(j.get("id", 0)) for j in all_jobs), default=0)
+        print(f"  Total on chain: {max_id}  |  Fetched: {len(all_jobs)}  |  My jobs: {len(my_jobs)}")
         print()
         if my_jobs:
             for j in sorted(my_jobs, key=lambda x: int(x.get("id", 0)), reverse=True):
