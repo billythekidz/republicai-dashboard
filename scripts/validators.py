@@ -25,19 +25,20 @@ def main():
         sys.exit(1)
 
     validators = data.get("validators", [])
-    validators.sort(key=lambda v: int(v.get("tokens", 0)), reverse=True)
+    bonded = [v for v in validators if v.get("status") == "BOND_STATUS_BONDED"]
+    unbonded = len(validators) - len(bonded)
+    bonded.sort(key=lambda v: int(v.get("tokens", 0)), reverse=True)
 
-    print(f"Total validators: {len(validators)}")
-    print(f"{'#':>3} {'Moniker':30s} {'Tokens':>15s} {'Status':25s} {'Jailed'}")
-    print("-" * 85)
+    print(f"Active (bonded) validators: {len(bonded)}  |  Unbonded/Jailed: {unbonded}")
+    print(f"{'#':>3} {'Moniker':30s} {'Tokens':>15s} {'Jailed'}")
+    print("-" * 60)
 
-    for i, v in enumerate(validators, 1):
+    for i, v in enumerate(bonded, 1):
         moniker = v.get("description", {}).get("moniker", "?")[:30]
         tokens = int(v.get("tokens", 0)) / 1e18
-        status = v.get("status", "?")
         jailed = "⚠️ JAILED" if v.get("jailed") else ""
         marker = " ← YOU" if v.get("operator_address") == valoper else ""
-        print(f"{i:>3} {moniker:30s} {tokens:>15.2f} {status:25s} {jailed}{marker}")
+        print(f"{i:>3} {moniker:30s} {tokens:>15.2f} {jailed}{marker}")
 
 if __name__ == "__main__":
     main()
