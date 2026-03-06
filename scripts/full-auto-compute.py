@@ -314,6 +314,35 @@ def submit_result(cfg, job_id, result_file):
     log(f"❌ Broadcast failed: {output[:200]}", "ERROR")
     return None
 
+# ── Step 5: Verify Job Status ──
+def verify_job_status(cfg, job_id, target_status="PendingValidation", max_wait=120, poll_interval=10):
+    """Poll job status until it reaches target_status or timeout.
+    Returns the final status string."""
+    log(f"🔎 Verifying job #{job_id} reaches '{target_status}'...")
+
+    deadline = time.time() + max_wait
+    last_status = "unknown"
+
+    while time.time() < deadline:
+        cmd = f"republicd query computevalidation job {job_id} --node {cfg['NODE_RPC']} -o json"
+        data, err = run_json(cmd, timeout=15)
+
+        if data:
+            job = data.get("job", data)
+            last_status = job.get("status", "unknown")
+            log(f"   Job #{job_id} status: {last_status}")
+
+            if target_status.lower() in last_status.lower():
+                log(f"✅ Job #{job_id} confirmed: {last_status}")
+                return last_status
+        else:
+            log(f"   Query failed: {err}", "WARN")
+
+        time.sleep(poll_interval)
+
+    log(f"⚠️  Job #{job_id} did not reach '{target_status}' within {max_wait}s (last: {last_status})", "WARN")
+    return last_status
+
 # ── Main Loop ──
 def main():
     parser = argparse.ArgumentParser(description="RepublicAI Full Auto Compute")
@@ -354,14 +383,18 @@ def main():
     signal.signal(signal.SIGINT, handle_signal)
 
     cycle = 0
+    success = 0
+    failed = 0
+
     while running[0]:
         cycle += 1
-        log(f"━━━ Cycle #{cycle} ━━━")
+        log(f"━━━ Cycle #{cycle} (✅{success} ❌{failed}) ━━━")
 
         try:
             # Step 1: Submit job
             txhash = submit_job(cfg)
             if not txhash:
+                failed += 1
                 log(f"⏳ Retrying in {cfg['INTERVAL']}s...")
                 time.sleep(cfg["INTERVAL"])
                 continue
@@ -371,6 +404,7 @@ def main():
             # Step 2: Get job ID
             job_id = get_job_id(cfg, txhash)
             if not job_id:
+                failed += 1
                 log(f"⏳ Retrying in {cfg['INTERVAL']}s...")
                 time.sleep(cfg["INTERVAL"])
                 continue
@@ -380,18 +414,32 @@ def main():
             # Step 3: Run inference
             result_file = run_inference(cfg, job_id)
             if not result_file:
+                failed += 1
                 log(f"⏳ Retrying in {cfg['INTERVAL']}s...")
                 time.sleep(cfg["INTERVAL"])
                 continue
 
             # Step 4: Submit result
             result_tx = submit_result(cfg, job_id, result_file)
-            if result_tx:
-                log(f"🎉 Job #{job_id} result submitted! TX: {result_tx}")
-            else:
+            if not result_tx:
+                failed += 1
                 log(f"❌ Result submission failed for job #{job_id}", "ERROR")
+                time.sleep(cfg["INTERVAL"])
+                continue
+
+            log(f"📤 Result TX: {result_tx}")
+
+            # Step 5: Verify job reaches PendingValidation
+            final_status = verify_job_status(cfg, job_id)
+            if "pending" in final_status.lower() and "validation" in final_status.lower():
+                success += 1
+                log(f"🎉 Job #{job_id} COMPLETE — {final_status}")
+            else:
+                failed += 1
+                log(f"⚠️  Job #{job_id} ended with status: {final_status}", "WARN")
 
         except Exception as e:
+            failed += 1
             log(f"💥 Unexpected error: {e}", "ERROR")
 
         if args.once:
@@ -399,13 +447,12 @@ def main():
             break
 
         log(f"⏳ Next cycle in {cfg['INTERVAL']}s ({cfg['INTERVAL']//60}min)...")
-        # Sleep in small chunks for responsive shutdown
         for _ in range(cfg["INTERVAL"]):
             if not running[0]:
                 break
             time.sleep(1)
 
-    log("👋 Auto-compute stopped.")
+    log(f"👋 Auto-compute stopped. Total: {cycle} cycles, ✅{success} success, ❌{failed} failed")
 
 if __name__ == "__main__":
     main()
