@@ -1,0 +1,17 @@
+[Unit]
+Description=RepublicAI Full Auto Compute (every 5min)
+After=network-online.target republicd.service republic-http.service
+Wants=republic-http.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/republicai-dashboard/scripts
+ExecStart=/usr/bin/python3 /root/republicai-dashboard/scripts/full-auto-compute.py --interval 300
+Restart=always
+RestartSec=30
+Environment=HOME=/root
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin
+
+[Install]
+WantedBy=multi-user.target
