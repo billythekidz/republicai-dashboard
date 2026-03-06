@@ -28,7 +28,7 @@ DEFAULTS = {
     "JOB_FEE": "1000000000000000arai",   # 0.001 RAI
     "GAS_PRICES": "1000000000arai",
     "INTERVAL": 300,  # 5 minutes
-    "DOCKER_TIMEOUT": 120,
+    "DOCKER_TIMEOUT": 300,
     "TX_WAIT": 15,
 }
 
