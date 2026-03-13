@@ -92,6 +92,68 @@ app.post('/api/config/refresh', (req, res) => {
     }
 });
 
+// ── HTTP helper for RPC calls ──
+const http = require('http');
+function rpcGet(url) {
+    return new Promise((resolve, reject) => {
+        const req = http.get(url, { timeout: 5000 }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    });
+}
+
+let rpcHttpResolved = null;
+async function tryRpcGet(path) {
+    const candidates = rpcHttpResolved
+        ? [rpcHttpResolved]
+        : [
+            nodeConfig.endpoints?.rpc_http,
+            'http://localhost:26657',
+            'http://localhost:26658',
+        ].filter(Boolean);
+    for (const base of candidates) {
+        try {
+            const data = await rpcGet(`${base}${path}`);
+            rpcHttpResolved = base;
+            return data;
+        } catch (e) {
+            if (e.message && (e.message.includes('ECONNREFUSED') || e.message.includes('timeout'))) continue;
+            throw e;
+        }
+    }
+    throw new Error('All RPC endpoints unreachable');
+}
+
+// ── Latest Blocks endpoint (cached 3s) ──
+let blocksCache = { data: null, ts: 0 };
+app.get('/api/blocks', async (req, res) => {
+    const now = Date.now();
+    if (blocksCache.data && now - blocksCache.ts < 3000) {
+        return res.json(blocksCache.data);
+    }
+    try {
+        const status = await tryRpcGet('/status');
+        const latestHeight = parseInt(status.result.sync_info.latest_block_height);
+        const minHeight = Math.max(1, latestHeight - 19);
+        const blockchain = await tryRpcGet(`/blockchain?minHeight=${minHeight}&maxHeight=${latestHeight}`);
+        const blocks = (blockchain.result.block_metas || []).map(b => ({
+            height: b.header.height,
+            hash: b.block_id.hash,
+            time: b.header.time,
+            num_txs: parseInt(b.num_txs || '0'),
+        }));
+        blocks.sort((a, b) => parseInt(b.height) - parseInt(a.height));
+        blocksCache = { data: blocks, ts: now };
+        res.json(blocks);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // SSE endpoint — streams command output in real-time
 app.get('/api/run', (req, res) => {
     const cmdId = req.query.cmd;

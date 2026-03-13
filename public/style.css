@@ -401,3 +401,64 @@ main {
   color: var(--text);
   border-color: var(--accent);
 }
+
+/* ── Block Timeline ── */
+#blocks-timeline {
+  max-height: 340px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.block-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid transparent;
+  font-size: 11px;
+  transition: background 0.2s;
+}
+
+.block-entry:hover {
+  background: #1f2937;
+  border-color: var(--border);
+}
+
+.blk-height {
+  color: var(--accent);
+  font-weight: 600;
+  min-width: 58px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+}
+
+.blk-hash {
+  color: var(--text-dim);
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 10px;
+}
+
+.blk-txs {
+  color: var(--yellow);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.blk-time {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.block-new {
+  animation: blockFlash 1.5s ease-out;
+}
+
+@keyframes blockFlash {
+  0% { background: #1a3a1a; border-color: var(--green); }
+  100% { background: var(--bg); border-color: transparent; }
+}

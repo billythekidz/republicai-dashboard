@@ -246,3 +246,56 @@ function copyShareCommand() {
 function closeShareModal() {
     document.getElementById('share-modal').classList.add('hidden');
 }
+
+// ── Latest Blocks Timeline ──
+const blocksEl = document.getElementById('blocks-timeline');
+let knownHeights = new Set();
+
+function timeAgo(isoStr) {
+    const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
+    if (diff < 5) return 'just now';
+    if (diff < 60) return diff + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    return Math.floor(diff / 3600) + 'h ago';
+}
+
+function renderBlocks(blocks) {
+    if (!blocksEl || !blocks.length) return;
+    blocks.forEach(b => {
+        const existing = document.getElementById('blk-' + b.height);
+        if (existing) {
+            existing.querySelector('.blk-time').textContent = timeAgo(b.time);
+            return;
+        }
+        const el = document.createElement('div');
+        el.className = 'block-entry' + (knownHeights.size > 0 ? ' block-new' : '');
+        el.id = 'blk-' + b.height;
+        el.innerHTML =
+            '<span class="blk-height">#' + b.height + '</span>' +
+            '<span class="blk-hash">' + b.hash.substring(0, 10) + '…</span>' +
+            (b.num_txs > 0 ? '<span class="blk-txs">' + b.num_txs + 'tx</span>' : '') +
+            '<span class="blk-time">' + timeAgo(b.time) + '</span>';
+        const firstChild = blocksEl.firstChild;
+        if (firstChild) blocksEl.insertBefore(el, firstChild);
+        else blocksEl.appendChild(el);
+        knownHeights.add(b.height);
+    });
+    while (blocksEl.children.length > 20) blocksEl.removeChild(blocksEl.lastChild);
+}
+
+async function fetchBlocks() {
+    try {
+        const resp = await fetch('/api/blocks');
+        if (!resp.ok) return;
+        const blocks = await resp.json();
+        const newBlocks = blocks.filter(b => !document.getElementById('blk-' + b.height)).reverse();
+        if (newBlocks.length > 0) renderBlocks(newBlocks);
+        blocks.forEach(b => {
+            const el = document.getElementById('blk-' + b.height);
+            if (el) el.querySelector('.blk-time').textContent = timeAgo(b.time);
+        });
+    } catch (e) { /* silent */ }
+}
+
+setTimeout(fetchBlocks, 1000);
+setInterval(fetchBlocks, 5000);
