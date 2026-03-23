@@ -1,16 +1,31 @@
 #!/usr/bin/env python3
 """
-RepublicAI Full Auto Compute — runs every 5 minutes.
+RepublicAI Full Auto Compute — runs continuously (30s between cycles).
 Pipeline: submit job → get job ID → docker inference → submit result → repeat
 
 Usage:
     python3 full-auto-compute.py                  # uses config.json or defaults
-    python3 full-auto-compute.py --interval 300   # custom interval (seconds)
+    python3 full-auto-compute.py --interval 30    # custom interval (seconds)
     python3 full-auto-compute.py --dry-run        # print what would run, don't execute
 """
-import json, os, subprocess, sys, time, hashlib, argparse, signal
+import json, os, subprocess, sys, time, hashlib, argparse, signal, fcntl, random
 from datetime import datetime
 from pathlib import Path
+
+# ── TX Lock (prevents sequence mismatch when running multiple instances) ──
+TX_LOCK_FILE = "/tmp/republic-tx.lock"
+INSTANCE_ID = "0"
+
+def tx_lock():
+    """Acquire file lock for TX signing. Returns lock file handle."""
+    f = open(TX_LOCK_FILE, 'w')
+    fcntl.flock(f, fcntl.LOCK_EX)
+    return f
+
+def tx_unlock(f):
+    """Release TX file lock."""
+    fcntl.flock(f, fcntl.LOCK_UN)
+    f.close()
 
 # ── Defaults (overridden by config.json or env vars) ──
 DEFAULTS = {
@@ -23,11 +38,11 @@ DEFAULTS = {
     "KEYRING_BACKEND": "test",
     "RESULT_BASE_URL": "https://republicai.devn.cloud",
     "JOBS_DIR": "/var/lib/republic/jobs",
-    "DOCKER_IMAGE": "republic-llm-inference:latest",
+    "DOCKER_IMAGE": "republicai/gpt2-inference:latest",
     "VERIFICATION_IMAGE": "example-verification:latest",
     "JOB_FEE": "1000000000000000arai",   # 0.001 RAI
     "GAS_PRICES": "1000000000arai",
-    "INTERVAL": 300,  # 5 minutes
+    "INTERVAL": 0,    # 0 = continuous, no delay between jobs
     "DOCKER_TIMEOUT": 300,
     "TX_WAIT": 15,
 }
@@ -35,7 +50,7 @@ DEFAULTS = {
 # ── Helpers ──
 def log(msg, level="INFO"):
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{ts}] [{level}] {msg}", flush=True)
+    print(f"[{ts}] [W{INSTANCE_ID}] [{level}] {msg}", flush=True)
 
 def run(cmd, timeout=30, input_str=None):
     """Run a shell command, return (stdout, stderr, returncode)."""
@@ -124,43 +139,48 @@ def load_config():
 # ── Step 1: Submit Job ──
 def submit_job(cfg):
     """Submit a new compute job to the chain. Returns TX hash or None."""
-    log("📤 Submitting new job...")
+    log("📤 Submitting new job (acquiring TX lock)...")
+    lock = tx_lock()
+    try:
+        time.sleep(random.uniform(0.5, 2.0))  # small jitter
 
-    cmd = (
-        f"republicd tx computevalidation submit-job "
-        f"{cfg['WALLET_VALOPER']} "
-        f"{cfg['DOCKER_IMAGE']} "
-        f"{cfg['RESULT_BASE_URL']}/upload "
-        f"{cfg['RESULT_BASE_URL']}/result "
-        f"{cfg['VERIFICATION_IMAGE']} "
-        f"{cfg['JOB_FEE']} "
-        f"--from {cfg['WALLET_NAME']} "
-        f"--home {cfg['NODE_HOME']} "
-        f"--chain-id {cfg['CHAIN_ID']} "
-        f"--gas auto "
-        f"--gas-adjustment 1.5 "
-        f"--gas-prices {cfg['GAS_PRICES']} "
-        f"--node {cfg['NODE_RPC']} "
-        f"--keyring-backend {cfg['KEYRING_BACKEND']} "
-        f"-y"
-    )
+        cmd = (
+            f"republicd tx computevalidation submit-job "
+            f"{cfg['WALLET_VALOPER']} "
+            f"{cfg['DOCKER_IMAGE']} "
+            f"{cfg['RESULT_BASE_URL']}/upload "
+            f"{cfg['RESULT_BASE_URL']}/result "
+            f"{cfg['VERIFICATION_IMAGE']} "
+            f"{cfg['JOB_FEE']} "
+            f"--from {cfg['WALLET_NAME']} "
+            f"--home {cfg['NODE_HOME']} "
+            f"--chain-id {cfg['CHAIN_ID']} "
+            f"--gas auto "
+            f"--gas-adjustment 1.5 "
+            f"--gas-prices {cfg['GAS_PRICES']} "
+            f"--node {cfg['NODE_RPC']} "
+            f"--keyring-backend {cfg['KEYRING_BACKEND']} "
+            f"-y"
+        )
 
-    stdout, stderr, rc = run(cmd, timeout=30)
-    output = stdout + "\n" + stderr
+        stdout, stderr, rc = run(cmd, timeout=30)
+        output = stdout + "\n" + stderr
 
-    # Extract txhash
-    for line in output.split("\n"):
-        if "txhash:" in line.lower() or "txhash:" in line:
-            parts = line.strip().split()
-            for i, p in enumerate(parts):
-                if p.lower().rstrip(":") == "txhash" and i + 1 < len(parts):
-                    return parts[i + 1]
-            # Also try: txhash: ABCDEF
-            if ":" in line:
-                return line.split(":", 1)[1].strip()
+        # Extract txhash
+        for line in output.split("\n"):
+            if "txhash:" in line.lower() or "txhash:" in line:
+                parts = line.strip().split()
+                for i, p in enumerate(parts):
+                    if p.lower().rstrip(":") == "txhash" and i + 1 < len(parts):
+                        return parts[i + 1]
+                # Also try: txhash: ABCDEF
+                if ":" in line:
+                    return line.split(":", 1)[1].strip()
 
-    log(f"❌ Failed to submit job (rc={rc}): {output[:200]}", "ERROR")
-    return None
+        log(f"❌ Failed to submit job (rc={rc}): {output[:200]}", "ERROR")
+        return None
+    finally:
+        tx_unlock(lock)
 
 # ── Step 2: Get Job ID from TX ──
 def get_job_id(cfg, txhash):
@@ -234,85 +254,93 @@ def run_inference(cfg, job_id):
 # ── Step 4: Submit Result ──
 def submit_result(cfg, job_id, result_file):
     """Submit inference result back to chain. Returns TX hash or None."""
-    log(f"📤 Submitting result for job #{job_id}...")
-
-    sha256 = sha256_file(result_file)
-    result_url = f"{cfg['RESULT_BASE_URL']}/{job_id}/result.bin"
-
-    # Step 4a: generate-only (unsigned TX)
-    cmd_gen = (
-        f"republicd tx computevalidation submit-job-result "
-        f"{job_id} "
-        f"{result_url} "
-        f"{cfg['VERIFICATION_IMAGE']} "
-        f"{sha256} "
-        f"--from {cfg['WALLET_NAME']} "
-        f"--home {cfg['NODE_HOME']} "
-        f"--chain-id {cfg['CHAIN_ID']} "
-        f"--gas 300000 "
-        f"--gas-prices {cfg['GAS_PRICES']} "
-        f"--node {cfg['NODE_RPC']} "
-        f"--keyring-backend {cfg['KEYRING_BACKEND']} "
-        f"--generate-only"
-    )
-    stdout, stderr, rc = run(cmd_gen, timeout=30)
-    if rc != 0 or not stdout:
-        log(f"❌ generate-only failed: {stderr[:200]}", "ERROR")
-        return None
-
-    # Write unsigned TX
-    unsigned_path = "/tmp/tx_unsigned.json"
-    with open(unsigned_path, "w") as f:
-        f.write(stdout)
-
-    # Step 4b: Fix bech32 validator address bug
+    log(f"📤 Submitting result for job #{job_id} (acquiring TX lock)...")
+    lock = tx_lock()
     try:
-        import bech32
-        tx = json.load(open(unsigned_path))
-        _, data = bech32.bech32_decode(cfg["WALLET_ADDRESS"])
-        valoper = bech32.bech32_encode("raivaloper", data)
-        tx["body"]["messages"][0]["validator"] = valoper
-        json.dump(tx, open(unsigned_path, "w"))
-    except ImportError:
-        log("⚠️  bech32 module not found, skipping address fix", "WARN")
-    except Exception as e:
-        log(f"⚠️  bech32 fix failed: {e}", "WARN")
+        time.sleep(random.uniform(0.5, 2.0))  # small jitter
 
-    # Step 4c: Sign
-    cmd_sign = (
-        f"republicd tx sign {unsigned_path} "
-        f"--from {cfg['WALLET_NAME']} "
-        f"--home {cfg['NODE_HOME']} "
-        f"--chain-id {cfg['CHAIN_ID']} "
-        f"--node {cfg['NODE_RPC']} "
-        f"--keyring-backend {cfg['KEYRING_BACKEND']} "
-        f"--output-document /tmp/tx_signed.json"
-    )
-    _, stderr, rc = run(cmd_sign, timeout=30)
-    if rc != 0:
-        log(f"❌ Sign failed: {stderr[:200]}", "ERROR")
+        sha256 = sha256_file(result_file)
+        result_url = f"{cfg['RESULT_BASE_URL']}/{job_id}/result.bin"
+
+        # Use instance-specific temp files to avoid conflicts
+        unsigned_path = f"/tmp/tx_unsigned_{INSTANCE_ID}.json"
+        signed_path = f"/tmp/tx_signed_{INSTANCE_ID}.json"
+
+        # Step 4a: generate-only (unsigned TX)
+        cmd_gen = (
+            f"republicd tx computevalidation submit-job-result "
+            f"{job_id} "
+            f"{result_url} "
+            f"{cfg['VERIFICATION_IMAGE']} "
+            f"{sha256} "
+            f"--from {cfg['WALLET_NAME']} "
+            f"--home {cfg['NODE_HOME']} "
+            f"--chain-id {cfg['CHAIN_ID']} "
+            f"--gas 300000 "
+            f"--gas-prices {cfg['GAS_PRICES']} "
+            f"--node {cfg['NODE_RPC']} "
+            f"--keyring-backend {cfg['KEYRING_BACKEND']} "
+            f"--generate-only"
+        )
+        stdout, stderr, rc = run(cmd_gen, timeout=30)
+        if rc != 0 or not stdout:
+            log(f"❌ generate-only failed: {stderr[:200]}", "ERROR")
+            return None
+
+        # Write unsigned TX
+        with open(unsigned_path, "w") as f:
+            f.write(stdout)
+
+        # Step 4b: Fix bech32 validator address bug
+        try:
+            import bech32
+            tx = json.load(open(unsigned_path))
+            _, data = bech32.bech32_decode(cfg["WALLET_ADDRESS"])
+            valoper = bech32.bech32_encode("raivaloper", data)
+            tx["body"]["messages"][0]["validator"] = valoper
+            json.dump(tx, open(unsigned_path, "w"))
+        except ImportError:
+            log("⚠️  bech32 module not found, skipping address fix", "WARN")
+        except Exception as e:
+            log(f"⚠️  bech32 fix failed: {e}", "WARN")
+
+        # Step 4c: Sign
+        cmd_sign = (
+            f"republicd tx sign {unsigned_path} "
+            f"--from {cfg['WALLET_NAME']} "
+            f"--home {cfg['NODE_HOME']} "
+            f"--chain-id {cfg['CHAIN_ID']} "
+            f"--node {cfg['NODE_RPC']} "
+            f"--keyring-backend {cfg['KEYRING_BACKEND']} "
+            f"--output-document {signed_path}"
+        )
+        _, stderr, rc = run(cmd_sign, timeout=30)
+        if rc != 0:
+            log(f"❌ Sign failed: {stderr[:200]}", "ERROR")
+            return None
+
+        # Step 4d: Broadcast
+        cmd_broadcast = (
+            f"republicd tx broadcast {signed_path} "
+            f"--node {cfg['NODE_RPC']} "
+            f"--chain-id {cfg['CHAIN_ID']}"
+        )
+        stdout, stderr, rc = run(cmd_broadcast, timeout=30)
+        output = stdout + "\n" + stderr
+
+        for line in output.split("\n"):
+            if "txhash" in line.lower():
+                parts = line.strip().split()
+                for i, p in enumerate(parts):
+                    if p.lower().rstrip(":") == "txhash" and i + 1 < len(parts):
+                        return parts[i + 1]
+                if ":" in line:
+                    return line.split(":", 1)[1].strip()
+
+        log(f"❌ Broadcast failed: {output[:200]}", "ERROR")
         return None
-
-    # Step 4d: Broadcast
-    cmd_broadcast = (
-        f"republicd tx broadcast /tmp/tx_signed.json "
-        f"--node {cfg['NODE_RPC']} "
-        f"--chain-id {cfg['CHAIN_ID']}"
-    )
-    stdout, stderr, rc = run(cmd_broadcast, timeout=30)
-    output = stdout + "\n" + stderr
-
-    for line in output.split("\n"):
-        if "txhash" in line.lower():
-            parts = line.strip().split()
-            for i, p in enumerate(parts):
-                if p.lower().rstrip(":") == "txhash" and i + 1 < len(parts):
-                    return parts[i + 1]
-            if ":" in line:
-                return line.split(":", 1)[1].strip()
-
-    log(f"❌ Broadcast failed: {output[:200]}", "ERROR")
-    return None
+    finally:
+        tx_unlock(lock)
 
 # ── Step 5: Verify Job Status ──
 def verify_job_status(cfg, job_id, target_status="PendingValidation", max_wait=120, poll_interval=10):
@@ -346,13 +374,16 @@ def verify_job_status(cfg, job_id, target_status="PendingValidation", max_wait=1
 # ── Main Loop ──
 def main():
     parser = argparse.ArgumentParser(description="RepublicAI Full Auto Compute")
-    parser.add_argument("--interval", type=int, default=300, help="Interval between runs in seconds (default: 300 = 5min)")
+    parser.add_argument("--interval", type=int, default=0, help="Interval between runs in seconds (default: 0 = continuous)")
+    parser.add_argument("--instance", type=str, default="0", help="Instance ID for multi-worker mode")
     parser.add_argument("--dry-run", action="store_true", help="Print config and exit")
     parser.add_argument("--once", action="store_true", help="Run once then exit")
     args = parser.parse_args()
 
     cfg = load_config()
     cfg["INTERVAL"] = args.interval
+    global INSTANCE_ID
+    INSTANCE_ID = args.instance
 
     log("=" * 60)
     log("🚀 RepublicAI Full Auto Compute")
@@ -395,8 +426,8 @@ def main():
             txhash = submit_job(cfg)
             if not txhash:
                 failed += 1
-                log(f"⏳ Retrying in {cfg['INTERVAL']}s...")
-                time.sleep(cfg["INTERVAL"])
+                log(f"⏳ Retrying in 10s...")
+                time.sleep(10)
                 continue
 
             log(f"✅ Submit TX: {txhash}")
@@ -405,8 +436,8 @@ def main():
             job_id = get_job_id(cfg, txhash)
             if not job_id:
                 failed += 1
-                log(f"⏳ Retrying in {cfg['INTERVAL']}s...")
-                time.sleep(cfg["INTERVAL"])
+                log(f"⏳ Retrying in 10s...")
+                time.sleep(10)
                 continue
 
             log(f"📋 Job ID: {job_id}")
@@ -415,8 +446,8 @@ def main():
             result_file = run_inference(cfg, job_id)
             if not result_file:
                 failed += 1
-                log(f"⏳ Retrying in {cfg['INTERVAL']}s...")
-                time.sleep(cfg["INTERVAL"])
+                log(f"⏳ Retrying in 10s...")
+                time.sleep(10)
                 continue
 
             # Step 4: Submit result
@@ -424,7 +455,7 @@ def main():
             if not result_tx:
                 failed += 1
                 log(f"❌ Result submission failed for job #{job_id}", "ERROR")
-                time.sleep(cfg["INTERVAL"])
+                time.sleep(10)
                 continue
 
             log(f"📤 Result TX: {result_tx}")
@@ -446,11 +477,14 @@ def main():
             log("--once flag set, exiting after 1 cycle")
             break
 
-        log(f"⏳ Next cycle in {cfg['INTERVAL']}s ({cfg['INTERVAL']//60}min)...")
-        for _ in range(cfg["INTERVAL"]):
-            if not running[0]:
-                break
-            time.sleep(1)
+        if cfg['INTERVAL'] > 0:
+            log(f"⏳ Next cycle in {cfg['INTERVAL']}s...")
+            for _ in range(cfg['INTERVAL']):
+                if not running[0]:
+                    break
+                time.sleep(1)
+        else:
+            log("🔄 Starting next job immediately...")
 
     log(f"👋 Auto-compute stopped. Total: {cycle} cycles, ✅{success} success, ❌{failed} failed")
 
